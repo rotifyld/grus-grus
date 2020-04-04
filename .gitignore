@@ -1,4 +1,16 @@
 .stack-work/
+.idea
+*.cabal
+*.iml
+*.lock
+ChangeLog.md
+*.bak
+LICENSE
+Setup.hs
+
+test.gg
+
+src/concepts
 *~
 # Project exclude paths
 /out/
