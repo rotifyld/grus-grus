@@ -1,0 +1,54 @@
+entrypoints Body ;
+
+Body. Body  ::= [Decl] Exp ;
+
+terminator Decl "" ;
+
+
+
+DVal.   Decl ::= "val" Ident ":" Type "=" Exp ";" ;
+DFun1.  Decl ::= "fun" Ident "(" Ident ":" Type ")" "->" Type "{" Body "}" ;
+
+
+
+EIfte.          Exp   ::= "if" Exp "then" Exp "else" Exp ;
+-- ECase/EMatch
+EOr.            Exp2  ::= Exp2 "||" Exp3 ;
+EAnd.           Exp3  ::= Exp3 "&&" Exp4 ;
+EEq.            Exp4  ::= Exp4 "==" Exp5 ;
+ENeq.           Exp4  ::= Exp4 "!=" Exp5 ;
+ELt.            Exp5  ::= Exp5 "<" Exp6 ;
+EGt.            Exp5  ::= Exp5 ">" Exp6 ;
+ELe.            Exp5  ::= Exp5 "<=" Exp6 ;
+EGe.            Exp5  ::= Exp5 ">=" Exp6 ;
+EAdd.           Exp6  ::= Exp6 "+" Exp7 ;
+ESub.           Exp6  ::= Exp6 "-" Exp7 ;
+EMult.          Exp7  ::= Exp7 "*" Exp8 ;
+EDiv.           Exp7  ::= Exp7 "/" Exp8 ;
+EMod.           Exp7  ::= Exp7 "%" Exp8 ;
+ECall1.         Exp8  ::= Ident "(" Exp ")" ;
+ENot.           Exp8 ::= "!" Exp9 ;
+EInt.           Exp9 ::= Integer ;
+EBool.          Exp9 ::= Boolean ;
+EUnit.          Exp9 ::= Unit ;
+EVar.           Exp9 ::= Ident ;
+-- todo functions call
+-- todo lambda
+
+coercions Exp 9 ;
+
+
+
+BTrue.      Boolean ::= "True" ;
+BFalse.     Boolean ::= "False" ;
+
+
+Unit.       Unit ::= "Unit" ;
+
+
+TInt.   Type ::= "Int" ;
+TBool.  Type ::= "Bool" ;
+TArrow. Type ::= Type "->" Type ; -- todo ??
+
+
+comment "//" ;
