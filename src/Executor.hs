@@ -16,7 +16,11 @@ data Value
     = VInt Integer
     | VBool Bool
     | VUnit
-    | VClosure String Body Env
+    | VClosure Function
+    deriving (Show)
+
+data Function =
+    Function String Body Env
     deriving (Show)
 
 class RuntimeExtract a where
@@ -32,23 +36,41 @@ instance RuntimeExtract Bool where
 
 type Loc = Int
 
-type Env = M.Map String Loc
+data Env =
+    Env
+        { envVarLocs :: M.Map String Loc
+        , envFuns :: M.Map String Function
+        }
+    deriving (Show)
 
 emptyEnv :: Env
-emptyEnv = M.empty
+emptyEnv = Env M.empty M.empty
 
-lookupEnv :: String -> ExecuteM (Maybe Loc)
-lookupEnv var = asks (M.lookup var)
+lookupVarEnv :: String -> ExecuteM (Maybe Loc)
+lookupVarEnv var = asks (M.lookup var . envVarLocs)
 
-fromEnv :: String -> ExecuteM Loc
-fromEnv var = do
-    mLoc <- lookupEnv var
+fromVarEnv :: String -> ExecuteM Loc
+fromVarEnv var = do
+    mLoc <- lookupVarEnv var
     case mLoc of
         Just loc -> return loc
         Nothing -> error "TMP variable not in env"
 
-insertEnv :: String -> Loc -> Env -> Env
-insertEnv = M.insert
+lookupFunEnv :: String -> ExecuteM (Maybe Function)
+lookupFunEnv fname = asks (M.lookup fname . envFuns)
+
+fromFunEnv :: String -> ExecuteM Loc
+fromFunEnv var = do
+    mLoc <- lookupVarEnv var
+    case mLoc of
+        Just loc -> return loc
+        Nothing -> error "TMP variable not in env"
+
+insertVarEnv :: String -> Loc -> Env -> Env
+insertVarEnv var loc env = env {envVarLocs = M.insert var loc (envVarLocs env)}
+
+insertFunEnv :: String -> Function -> Env -> Env
+insertFunEnv fname fun env = env {envFuns = M.insert fname fun (envFuns env)}
 
 data Store =
     Store
@@ -90,15 +112,13 @@ instance Executable Body where
     execute (Body [] e) = execute e
     execute (Body (DVal (Ident var) _ dExp:ds) bExp) = do
         v <- execute dExp
-        mLoc <- lookupEnv var
-        loc <-
-            case mLoc of
-                Just l -> return l
-                Nothing -> allocStore
-        insertStore loc v
-        local (M.insert var loc) $ execute (Body ds bExp)
+        loc <- allocStore
+        local (insertVarEnv var loc) $ execute (Body ds bExp)
+    execute (Body (DFun1 (Ident fname) (Ident pname) _ _ fbody:ds) bExp) = do
+        env <- ask
+        let fun = Function pname fbody env
+        local (insertFunEnv fname fun) $ execute (Body ds bExp)
 
---    interpret (Body (DFun1 (Ident funName) (Ident varName) _ _ body:ds) bExp) = do
 executeBinaryOp :: (RuntimeExtract a) => Exp -> Exp -> (a -> a -> b) -> (b -> Value) -> ExecuteM Value
 executeBinaryOp e1 e2 op value = do
     v1 <- execute e1
@@ -127,8 +147,12 @@ instance Executable Exp where
     execute (ENot e) = do
         v <- execute e
         return $ VBool $ not $ extract v
+--    execute (ECall1 (Ident fname) exp) = do
+--        newLoc <- allocStore
+--        val <- execute exp
+--        todo
     execute (EInt i) = return $ VInt i
     execute (EBool BTrue) = return $ VBool True
     execute (EBool BFalse) = return $ VBool False
     execute (EUnit _) = return VUnit
-    execute (EVar (Ident var)) = fromStore =<< fromEnv var
+    execute (EVar (Ident var)) = fromStore =<< fromVarEnv var
