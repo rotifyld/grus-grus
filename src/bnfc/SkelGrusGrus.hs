@@ -17,6 +17,7 @@ transBody x = case x of
   Body decls exp -> failure x
 transDecl :: Decl -> Result
 transDecl x = case x of
+  DPut exp -> failure x
   DVal ident type_ exp -> failure x
   DFun1 ident1 ident2 type_1 type_2 body -> failure x
 transExp :: Exp -> Result
@@ -35,8 +36,8 @@ transExp x = case x of
   EMult exp1 exp2 -> failure x
   EDiv exp1 exp2 -> failure x
   EMod exp1 exp2 -> failure x
-  ECall1 ident exp -> failure x
   ENot exp -> failure x
+  ECall1 ident exp -> failure x
   EInt integer -> failure x
   EBool boolean -> failure x
   EUnit unit -> failure x

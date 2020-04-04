@@ -40,11 +40,12 @@ import ErrM
   'else' { PT _ (TS _ 25) }
   'fun' { PT _ (TS _ 26) }
   'if' { PT _ (TS _ 27) }
-  'then' { PT _ (TS _ 28) }
-  'val' { PT _ (TS _ 29) }
-  '{' { PT _ (TS _ 30) }
-  '||' { PT _ (TS _ 31) }
-  '}' { PT _ (TS _ 32) }
+  'put' { PT _ (TS _ 28) }
+  'then' { PT _ (TS _ 29) }
+  'val' { PT _ (TS _ 30) }
+  '{' { PT _ (TS _ 31) }
+  '||' { PT _ (TS _ 32) }
+  '}' { PT _ (TS _ 33) }
   L_ident  { PT _ (TV $$) }
   L_integ  { PT _ (TI $$) }
 
@@ -61,7 +62,8 @@ Body : ListDecl Exp { AbsGrusGrus.Body (reverse $1) $2 }
 ListDecl :: { [Decl] }
 ListDecl : {- empty -} { [] } | ListDecl Decl { flip (:) $1 $2 }
 Decl :: { Decl }
-Decl : 'val' Ident ':' Type '=' Exp ';' { AbsGrusGrus.DVal $2 $4 $6 }
+Decl : 'put' Exp ';' { AbsGrusGrus.DPut $2 }
+     | 'val' Ident ':' Type '=' Exp ';' { AbsGrusGrus.DVal $2 $4 $6 }
      | 'fun' Ident '(' Ident ':' Type ')' '->' Type '{' Body '}' { AbsGrusGrus.DFun1 $2 $4 $6 $9 $11 }
 Exp :: { Exp }
 Exp : 'if' Exp 'then' Exp 'else' Exp { AbsGrusGrus.EIfte $2 $4 $6 }
@@ -90,11 +92,10 @@ Exp7 : Exp7 '*' Exp8 { AbsGrusGrus.EMult $1 $3 }
      | Exp7 '%' Exp8 { AbsGrusGrus.EMod $1 $3 }
      | Exp8 { $1 }
 Exp8 :: { Exp }
-Exp8 : Ident '(' Exp ')' { AbsGrusGrus.ECall1 $1 $3 }
-     | '!' Exp9 { AbsGrusGrus.ENot $2 }
-     | Exp9 { $1 }
+Exp8 : '!' Exp9 { AbsGrusGrus.ENot $2 } | Exp9 { $1 }
 Exp9 :: { Exp }
-Exp9 : Integer { AbsGrusGrus.EInt $1 }
+Exp9 : Ident '(' Exp ')' { AbsGrusGrus.ECall1 $1 $3 }
+     | Integer { AbsGrusGrus.EInt $1 }
      | Boolean { AbsGrusGrus.EBool $1 }
      | Unit { AbsGrusGrus.EUnit $1 }
      | Ident { AbsGrusGrus.EVar $1 }

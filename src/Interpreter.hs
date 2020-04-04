@@ -8,18 +8,15 @@ import AbsGrusGrus (Body)
 import ErrM
 import LexGrusGrus
 import ParGrusGrus
+import System.IO (hPutStrLn, stderr)
 
 interpret :: IO ()
 interpret = do
     putStrLn ""
-    interact runInterpreter
-    putStrLn "\n"
-
-runInterpreter :: String -> String
-runInterpreter s =
-    case runParser s of
-        (Ok body) -> show $ runExecuteM (execute body)
-        (Bad str) -> show str
+    programStr <- getContents
+    case runParser programStr of
+        (Ok body) -> runExecuteM (execute body) >>= print
+        (Bad str) -> hPutStrLn stderr str
 
 runParser :: String -> Err Body
 runParser s = pBody (myLexer s)

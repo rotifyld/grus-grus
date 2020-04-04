@@ -9,7 +9,8 @@ newtype Ident = Ident String
 data Body = Body [Decl] Exp
   deriving (Eq, Ord, Show, Read)
 
-data Decl = DVal Ident Type Exp | DFun1 Ident Ident Type Type Body
+data Decl
+    = DPut Exp | DVal Ident Type Exp | DFun1 Ident Ident Type Type Body
   deriving (Eq, Ord, Show, Read)
 
 data Exp
@@ -27,8 +28,8 @@ data Exp
     | EMult Exp Exp
     | EDiv Exp Exp
     | EMod Exp Exp
-    | ECall1 Ident Exp
     | ENot Exp
+    | ECall1 Ident Exp
     | EInt Integer
     | EBool Boolean
     | EUnit Unit

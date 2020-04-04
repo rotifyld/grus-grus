@@ -6,6 +6,7 @@ terminator Decl "" ;
 
 
 
+DPut.   Decl ::= "put" Exp ";" ;
 DVal.   Decl ::= "val" Ident ":" Type "=" Exp ";" ;
 DFun1.  Decl ::= "fun" Ident "(" Ident ":" Type ")" "->" Type "{" Body "}" ;
 
