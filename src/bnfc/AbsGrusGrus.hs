@@ -10,7 +10,12 @@ data Body = Body [Decl] Exp
   deriving (Eq, Ord, Show, Read)
 
 data Decl
-    = DPut Exp | DVal Ident Type Exp | DFun1 Ident Ident Type Type Body
+    = DPut Exp
+    | DVal TypedIdent Exp
+    | DFun Ident [TypedIdent] Type Body
+  deriving (Eq, Ord, Show, Read)
+
+data TypedIdent = TypedIdent Ident Type
   deriving (Eq, Ord, Show, Read)
 
 data Exp
@@ -29,7 +34,9 @@ data Exp
     | EDiv Exp Exp
     | EMod Exp Exp
     | ENot Exp
-    | ECall1 Ident Exp
+    | ECallIdent Ident [Exp]
+    | ECallExp Exp [Exp]
+    | ELambda [TypedIdent] Body
     | EInt Integer
     | EBool Boolean
     | EUnit Unit

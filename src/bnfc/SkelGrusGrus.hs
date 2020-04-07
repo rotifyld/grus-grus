@@ -18,8 +18,11 @@ transBody x = case x of
 transDecl :: Decl -> Result
 transDecl x = case x of
   DPut exp -> failure x
-  DVal ident type_ exp -> failure x
-  DFun1 ident1 ident2 type_1 type_2 body -> failure x
+  DVal typedident exp -> failure x
+  DFun ident typedidents type_ body -> failure x
+transTypedIdent :: TypedIdent -> Result
+transTypedIdent x = case x of
+  TypedIdent ident type_ -> failure x
 transExp :: Exp -> Result
 transExp x = case x of
   EIfte exp1 exp2 exp3 -> failure x
@@ -37,7 +40,9 @@ transExp x = case x of
   EDiv exp1 exp2 -> failure x
   EMod exp1 exp2 -> failure x
   ENot exp -> failure x
-  ECall1 ident exp -> failure x
+  ECallIdent ident exps -> failure x
+  ECallExp exp exps -> failure x
+  ELambda typedidents body -> failure x
   EInt integer -> failure x
   EBool boolean -> failure x
   EUnit unit -> failure x

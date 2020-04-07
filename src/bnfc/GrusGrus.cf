@@ -1,3 +1,9 @@
+
+
+-- Program
+
+
+comment "//" ;
 entrypoints Body ;
 
 Body. Body  ::= [Decl] Exp ;
@@ -5,11 +11,19 @@ Body. Body  ::= [Decl] Exp ;
 terminator Decl "" ;
 
 
+-- Declarations
+
 
 DPut.   Decl ::= "put" Exp ";" ;
-DVal.   Decl ::= "val" Ident ":" Type "=" Exp ";" ;
-DFun1.  Decl ::= "fun" Ident "(" Ident ":" Type ")" "->" Type "{" Body "}" ;
+DVal.   Decl ::= "val" TypedIdent "=" Exp ";" ;
+DFun.   Decl ::= "fun" Ident "(" [TypedIdent] ")" "->" Type "{" Body "}" ;
 
+TypedIdent.     TypedIdent  ::= Ident ":" Type ;
+
+separator TypedIdent "," ;
+
+
+-- Expressions
 
 
 EIfte.          Exp   ::= "if" Exp "then" Exp "else" Exp ;
@@ -28,28 +42,31 @@ EMult.          Exp7  ::= Exp7 "*" Exp8 ;
 EDiv.           Exp7  ::= Exp7 "/" Exp8 ;
 EMod.           Exp7  ::= Exp7 "%" Exp8 ;
 ENot.           Exp8 ::= "!" Exp9 ;
-ECall1.         Exp9  ::= Ident "(" Exp ")" ;
+ECallIdent.     Exp9  ::= Ident "(" [Exp] ")" ;
+ECallExp.       Exp9  ::= Exp "<~" "(" [Exp] ")" ;
+ELambda.        Exp9 ::= "(" "\\" [TypedIdent] "~>" Body ")" ;
 EInt.           Exp9 ::= Integer ;
 EBool.          Exp9 ::= Boolean ;
 EUnit.          Exp9 ::= Unit ;
 EVar.           Exp9 ::= Ident ;
--- todo functions call
 -- todo lambda
 
+separator Exp "," ;
 coercions Exp 9 ;
 
+
+-- Primitive types
 
 
 BTrue.      Boolean ::= "True" ;
 BFalse.     Boolean ::= "False" ;
 
-
 Unit.       Unit ::= "Unit" ;
+
+
+-- Types
 
 
 TInt.   Type ::= "Int" ;
 TBool.  Type ::= "Bool" ;
 TArrow. Type ::= Type "->" Type ; -- todo ??
-
-
-comment "//" ;

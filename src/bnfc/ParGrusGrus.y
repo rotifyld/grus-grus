@@ -21,31 +21,35 @@ import ErrM
   ')' { PT _ (TS _ 6) }
   '*' { PT _ (TS _ 7) }
   '+' { PT _ (TS _ 8) }
-  '-' { PT _ (TS _ 9) }
-  '->' { PT _ (TS _ 10) }
-  '/' { PT _ (TS _ 11) }
-  ':' { PT _ (TS _ 12) }
-  ';' { PT _ (TS _ 13) }
-  '<' { PT _ (TS _ 14) }
-  '<=' { PT _ (TS _ 15) }
-  '=' { PT _ (TS _ 16) }
-  '==' { PT _ (TS _ 17) }
-  '>' { PT _ (TS _ 18) }
-  '>=' { PT _ (TS _ 19) }
-  'Bool' { PT _ (TS _ 20) }
-  'False' { PT _ (TS _ 21) }
-  'Int' { PT _ (TS _ 22) }
-  'True' { PT _ (TS _ 23) }
-  'Unit' { PT _ (TS _ 24) }
-  'else' { PT _ (TS _ 25) }
-  'fun' { PT _ (TS _ 26) }
-  'if' { PT _ (TS _ 27) }
-  'put' { PT _ (TS _ 28) }
-  'then' { PT _ (TS _ 29) }
-  'val' { PT _ (TS _ 30) }
-  '{' { PT _ (TS _ 31) }
-  '||' { PT _ (TS _ 32) }
-  '}' { PT _ (TS _ 33) }
+  ',' { PT _ (TS _ 9) }
+  '-' { PT _ (TS _ 10) }
+  '->' { PT _ (TS _ 11) }
+  '/' { PT _ (TS _ 12) }
+  ':' { PT _ (TS _ 13) }
+  ';' { PT _ (TS _ 14) }
+  '<' { PT _ (TS _ 15) }
+  '<=' { PT _ (TS _ 16) }
+  '<~' { PT _ (TS _ 17) }
+  '=' { PT _ (TS _ 18) }
+  '==' { PT _ (TS _ 19) }
+  '>' { PT _ (TS _ 20) }
+  '>=' { PT _ (TS _ 21) }
+  'Bool' { PT _ (TS _ 22) }
+  'False' { PT _ (TS _ 23) }
+  'Int' { PT _ (TS _ 24) }
+  'True' { PT _ (TS _ 25) }
+  'Unit' { PT _ (TS _ 26) }
+  '\\' { PT _ (TS _ 27) }
+  'else' { PT _ (TS _ 28) }
+  'fun' { PT _ (TS _ 29) }
+  'if' { PT _ (TS _ 30) }
+  'put' { PT _ (TS _ 31) }
+  'then' { PT _ (TS _ 32) }
+  'val' { PT _ (TS _ 33) }
+  '{' { PT _ (TS _ 34) }
+  '||' { PT _ (TS _ 35) }
+  '}' { PT _ (TS _ 36) }
+  '~>' { PT _ (TS _ 37) }
   L_ident  { PT _ (TV $$) }
   L_integ  { PT _ (TI $$) }
 
@@ -63,8 +67,14 @@ ListDecl :: { [Decl] }
 ListDecl : {- empty -} { [] } | ListDecl Decl { flip (:) $1 $2 }
 Decl :: { Decl }
 Decl : 'put' Exp ';' { AbsGrusGrus.DPut $2 }
-     | 'val' Ident ':' Type '=' Exp ';' { AbsGrusGrus.DVal $2 $4 $6 }
-     | 'fun' Ident '(' Ident ':' Type ')' '->' Type '{' Body '}' { AbsGrusGrus.DFun1 $2 $4 $6 $9 $11 }
+     | 'val' TypedIdent '=' Exp ';' { AbsGrusGrus.DVal $2 $4 }
+     | 'fun' Ident '(' ListTypedIdent ')' '->' Type '{' Body '}' { AbsGrusGrus.DFun $2 $4 $7 $9 }
+TypedIdent :: { TypedIdent }
+TypedIdent : Ident ':' Type { AbsGrusGrus.TypedIdent $1 $3 }
+ListTypedIdent :: { [TypedIdent] }
+ListTypedIdent : {- empty -} { [] }
+               | TypedIdent { (:[]) $1 }
+               | TypedIdent ',' ListTypedIdent { (:) $1 $3 }
 Exp :: { Exp }
 Exp : 'if' Exp 'then' Exp 'else' Exp { AbsGrusGrus.EIfte $2 $4 $6 }
     | Exp1 { $1 }
@@ -94,12 +104,18 @@ Exp7 : Exp7 '*' Exp8 { AbsGrusGrus.EMult $1 $3 }
 Exp8 :: { Exp }
 Exp8 : '!' Exp9 { AbsGrusGrus.ENot $2 } | Exp9 { $1 }
 Exp9 :: { Exp }
-Exp9 : Ident '(' Exp ')' { AbsGrusGrus.ECall1 $1 $3 }
+Exp9 : Ident '(' ListExp ')' { AbsGrusGrus.ECallIdent $1 $3 }
+     | Exp '<~' '(' ListExp ')' { AbsGrusGrus.ECallExp $1 $4 }
+     | '(' '\\' ListTypedIdent '~>' Body ')' { AbsGrusGrus.ELambda $3 $5 }
      | Integer { AbsGrusGrus.EInt $1 }
      | Boolean { AbsGrusGrus.EBool $1 }
      | Unit { AbsGrusGrus.EUnit $1 }
      | Ident { AbsGrusGrus.EVar $1 }
      | '(' Exp ')' { $2 }
+ListExp :: { [Exp] }
+ListExp : {- empty -} { [] }
+        | Exp { (:[]) $1 }
+        | Exp ',' ListExp { (:) $1 $3 }
 Exp1 :: { Exp }
 Exp1 : Exp2 { $1 }
 Boolean :: { Boolean }
