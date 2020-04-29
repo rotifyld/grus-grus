@@ -2,15 +2,18 @@ module Executor
     ( ExecuteM
     , execute
     , runExecuteM
+    , Value
     ) where
 
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
+import Data.List (intercalate)
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
 
 import AbsGrusGrus
+import InterpreterError
 
 data RuntimeException =
     DivideByZero
@@ -20,7 +23,16 @@ data Value
     | VBool Bool
     | VUnit
     | VFun Function
-    deriving (Show)
+    | VAlg String [Value]
+
+instance Show Value where
+    show (VInt int) = show int
+    show (VBool bool) = show bool
+    show VUnit = "Unit"
+    show (VFun (Function (Just name) _ _ _)) = "Function \"" ++ name ++ "\""
+    show (VFun (Function Nothing _ _ _)) = "Anonymous function"
+    show (VAlg name []) = name
+    show (VAlg name vals) = name ++ "(" ++ (intercalate ", " . map show) vals ++ ")"
 
 type Identifier = String
 
@@ -28,7 +40,7 @@ getIdentifier :: TypedIdent -> Identifier
 getIdentifier (TypedIdent (Ident ident) _) = ident
 
 data Function =
-    Function [Identifier] Body Env
+    Function (Maybe Identifier) [Identifier] Body Env
     deriving (Show)
 
 class RuntimeExtract a where
@@ -70,10 +82,10 @@ findEnv ident = do
 modifyEnv :: Identifier -> Value -> Env -> Env
 modifyEnv = M.insert
 
-type ExecuteM = ReaderT Env IO
+type ExecuteM = ReaderT Env (ExceptT IError IO)
 
-runExecuteM :: ExecuteM a -> IO a
-runExecuteM executable = runReaderT executable emptyEnv
+runExecuteM :: ExecuteM a -> IO (Either IError a)
+runExecuteM executable = runExceptT (runReaderT executable emptyEnv)
 
 class Executable a where
     execute :: a -> ExecuteM Value
@@ -82,7 +94,7 @@ instance Executable Body where
     execute (Body [] e) = execute e
     execute (Body (DPut exp:ds) bodyExp) = do
         v <- execute exp
-        lift . putStrLn $ "put " ++ show v
+        liftIO . putStrLn $ ">> " ++ show v
         execute (Body ds bodyExp)
     execute (Body (DVal typedIdent dExp:ds) bodyExp) = do
         v <- execute dExp
@@ -91,8 +103,9 @@ instance Executable Body where
     execute (Body (DFun (Ident fident) paramsTyped _ fbody:ds) bodyExp) = do
         env <- ask
         let params = map getIdentifier paramsTyped
-        let fun = Function params fbody env
+        let fun = Function (Just fident) params fbody env
         local (modifyEnv fident (VFun fun)) $ execute (Body ds bodyExp)
+    execute (Body (DAlg algType algValues:ds) bodyExp) = execute (Body ds bodyExp)
 
 executeBinaryOp :: (RuntimeExtract a) => Exp -> Exp -> (a -> a -> b) -> (b -> Value) -> ExecuteM Value
 executeBinaryOp e1 e2 op value = do
@@ -100,8 +113,8 @@ executeBinaryOp e1 e2 op value = do
     v2 <- execute e2
     return $ value $ extract v1 `op` extract v2
 
-callFunction :: Maybe Identifier -> Function -> [Exp] -> ExecuteM Value
-callFunction mIdent fun@(Function params body env) exps = do
+callFunction :: Function -> [Exp] -> ExecuteM Value
+callFunction fun@(Function mIdent params body env) exps = do
     vals <- mapM execute exps
     let env0 =
             case mIdent of
@@ -112,7 +125,7 @@ callFunction mIdent fun@(Function params body env) exps = do
         LT -> do
             let env' = foldl (\e (p, v) -> modifyEnv p v e) env0 (zip params vals)
             let leftParams = drop (length vals) params
-            return $ VFun (Function leftParams body env')
+            return $ VFun (Function mIdent leftParams body env')
         EQ -> do
             let env' = foldl (\e (p, v) -> modifyEnv p v e) env0 (zip params vals)
             local (const env') $ execute body
@@ -137,25 +150,23 @@ instance Executable Exp where
     execute (EDiv e1 e2) = do
         v2 <- execute e2
         if (extract v2 :: Integer) == 0
-            then error "TMP div zero error"
+            then throwError (IEError DivByZero)
             else executeBinaryOp e1 e2 div VInt
     execute (EMod e1 e2) = executeBinaryOp e1 e2 mod VInt
-    execute (ENot e) = do
-        v <- execute e
-        return $ VBool $ not $ extract v
-    execute (ECallIdent (Ident fname) exps) = do
-        vfun <- findEnv fname
-        callFunction (Just fname) (extract vfun) exps
-    execute (ECallExp exp exps) = do
+    execute (ECall exp exps) = do
         vfun <- execute exp
-        callFunction Nothing (extract vfun) exps
+        callFunction (extract vfun) exps
     execute (ELambda paramsTyped body) = do
         env <- ask
         let params = map getIdentifier paramsTyped
-        let fun = Function params body env
+        let fun = Function Nothing params body env
         return $ VFun fun
     execute (EInt i) = return $ VInt i
     execute (EBool BTrue) = return $ VBool True
     execute (EBool BFalse) = return $ VBool False
     execute (EUnit _) = return VUnit
-    execute (EVar (Ident var)) = findEnv var
+    execute (EVar (Ident name)) = findEnv name
+    execute (EAlg (TAV (UIdent algValue))) = return $ VAlg algValue []
+    execute (EAlg (TAVArgs (UIdent algValue) exps)) = do
+        vals <- mapM execute exps
+        return $ VAlg algValue vals

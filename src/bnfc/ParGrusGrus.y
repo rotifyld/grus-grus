@@ -13,45 +13,45 @@ import ErrM
 %monad { Err } { thenM } { returnM }
 %tokentype {Token}
 %token
-  '!' { PT _ (TS _ 1) }
-  '!=' { PT _ (TS _ 2) }
-  '%' { PT _ (TS _ 3) }
-  '&&' { PT _ (TS _ 4) }
-  '(' { PT _ (TS _ 5) }
-  ')' { PT _ (TS _ 6) }
-  '*' { PT _ (TS _ 7) }
-  '+' { PT _ (TS _ 8) }
-  ',' { PT _ (TS _ 9) }
-  '-' { PT _ (TS _ 10) }
-  '->' { PT _ (TS _ 11) }
-  '/' { PT _ (TS _ 12) }
-  ':' { PT _ (TS _ 13) }
-  ';' { PT _ (TS _ 14) }
-  '<' { PT _ (TS _ 15) }
-  '<=' { PT _ (TS _ 16) }
-  '<~' { PT _ (TS _ 17) }
-  '=' { PT _ (TS _ 18) }
-  '==' { PT _ (TS _ 19) }
-  '>' { PT _ (TS _ 20) }
-  '>=' { PT _ (TS _ 21) }
-  'Bool' { PT _ (TS _ 22) }
-  'False' { PT _ (TS _ 23) }
-  'Int' { PT _ (TS _ 24) }
-  'True' { PT _ (TS _ 25) }
-  'Unit' { PT _ (TS _ 26) }
-  '\\' { PT _ (TS _ 27) }
-  'else' { PT _ (TS _ 28) }
-  'fun' { PT _ (TS _ 29) }
-  'if' { PT _ (TS _ 30) }
-  'put' { PT _ (TS _ 31) }
-  'then' { PT _ (TS _ 32) }
-  'val' { PT _ (TS _ 33) }
-  '{' { PT _ (TS _ 34) }
-  '||' { PT _ (TS _ 35) }
-  '}' { PT _ (TS _ 36) }
-  '~>' { PT _ (TS _ 37) }
+  '!=' { PT _ (TS _ 1) }
+  '%' { PT _ (TS _ 2) }
+  '&&' { PT _ (TS _ 3) }
+  '(' { PT _ (TS _ 4) }
+  ')' { PT _ (TS _ 5) }
+  '*' { PT _ (TS _ 6) }
+  '+' { PT _ (TS _ 7) }
+  ',' { PT _ (TS _ 8) }
+  '-' { PT _ (TS _ 9) }
+  '->' { PT _ (TS _ 10) }
+  '/' { PT _ (TS _ 11) }
+  ':' { PT _ (TS _ 12) }
+  ';' { PT _ (TS _ 13) }
+  '<' { PT _ (TS _ 14) }
+  '<=' { PT _ (TS _ 15) }
+  '=' { PT _ (TS _ 16) }
+  '==' { PT _ (TS _ 17) }
+  '>' { PT _ (TS _ 18) }
+  '>=' { PT _ (TS _ 19) }
+  'False' { PT _ (TS _ 20) }
+  'Int' { PT _ (TS _ 21) }
+  'True' { PT _ (TS _ 22) }
+  'Unit' { PT _ (TS _ 23) }
+  '\\' { PT _ (TS _ 24) }
+  'alg' { PT _ (TS _ 25) }
+  'else' { PT _ (TS _ 26) }
+  'fun' { PT _ (TS _ 27) }
+  'if' { PT _ (TS _ 28) }
+  'put' { PT _ (TS _ 29) }
+  'then' { PT _ (TS _ 30) }
+  'val' { PT _ (TS _ 31) }
+  '{' { PT _ (TS _ 32) }
+  '|' { PT _ (TS _ 33) }
+  '||' { PT _ (TS _ 34) }
+  '}' { PT _ (TS _ 35) }
+  '~>' { PT _ (TS _ 36) }
   L_ident  { PT _ (TV $$) }
   L_integ  { PT _ (TI $$) }
+  L_UIdent { PT _ (T_UIdent $$) }
 
 %%
 
@@ -61,6 +61,9 @@ Ident    : L_ident  { Ident $1 }
 Integer :: { Integer }
 Integer  : L_integ  { (read ( $1)) :: Integer }
 
+UIdent :: { UIdent}
+UIdent  : L_UIdent { UIdent ($1)}
+
 Body :: { Body }
 Body : ListDecl Exp { AbsGrusGrus.Body (reverse $1) $2 }
 ListDecl :: { [Decl] }
@@ -69,12 +72,17 @@ Decl :: { Decl }
 Decl : 'put' Exp ';' { AbsGrusGrus.DPut $2 }
      | 'val' TypedIdent '=' Exp ';' { AbsGrusGrus.DVal $2 $4 }
      | 'fun' Ident '(' ListTypedIdent ')' '->' Type '{' Body '}' { AbsGrusGrus.DFun $2 $4 $7 $9 }
+     | 'alg' UIdent '=' ListTypeAlgConstr ';' { AbsGrusGrus.DAlg $2 $4 }
 TypedIdent :: { TypedIdent }
 TypedIdent : Ident ':' Type { AbsGrusGrus.TypedIdent $1 $3 }
 ListTypedIdent :: { [TypedIdent] }
 ListTypedIdent : {- empty -} { [] }
                | TypedIdent { (:[]) $1 }
                | TypedIdent ',' ListTypedIdent { (:) $1 $3 }
+ListTypeAlgConstr :: { [TypeAlgConstr] }
+ListTypeAlgConstr : {- empty -} { [] }
+                  | TypeAlgConstr { (:[]) $1 }
+                  | TypeAlgConstr '|' ListTypeAlgConstr { (:) $1 $3 }
 Exp :: { Exp }
 Exp : 'if' Exp 'then' Exp 'else' Exp { AbsGrusGrus.EIfte $2 $4 $6 }
     | Exp1 { $1 }
@@ -102,11 +110,11 @@ Exp7 : Exp7 '*' Exp8 { AbsGrusGrus.EMult $1 $3 }
      | Exp7 '%' Exp8 { AbsGrusGrus.EMod $1 $3 }
      | Exp8 { $1 }
 Exp8 :: { Exp }
-Exp8 : '!' Exp9 { AbsGrusGrus.ENot $2 } | Exp9 { $1 }
+Exp8 : Exp '(' ListExp ')' { AbsGrusGrus.ECall $1 $3 }
+     | TypeAlgValue { AbsGrusGrus.EAlg $1 }
+     | Exp9 { $1 }
 Exp9 :: { Exp }
-Exp9 : Ident '(' ListExp ')' { AbsGrusGrus.ECallIdent $1 $3 }
-     | Exp '<~' '(' ListExp ')' { AbsGrusGrus.ECallExp $1 $4 }
-     | '(' '\\' ListTypedIdent '~>' Body ')' { AbsGrusGrus.ELambda $3 $5 }
+Exp9 : '(' '\\' ListTypedIdent '~>' Body ')' { AbsGrusGrus.ELambda $3 $5 }
      | Integer { AbsGrusGrus.EInt $1 }
      | Boolean { AbsGrusGrus.EBool $1 }
      | Unit { AbsGrusGrus.EUnit $1 }
@@ -124,9 +132,23 @@ Boolean : 'True' { AbsGrusGrus.BTrue }
 Unit :: { Unit }
 Unit : 'Unit' { AbsGrusGrus.Unit }
 Type :: { Type }
-Type : 'Int' { AbsGrusGrus.TInt }
-     | 'Bool' { AbsGrusGrus.TBool }
-     | Type '->' Type { AbsGrusGrus.TArrow $1 $3 }
+Type : Type2 '->' Type { AbsGrusGrus.TArrow $1 $3 } | Type1 { $1 }
+Type2 :: { Type }
+Type2 : 'Int' { AbsGrusGrus.TInt }
+      | UIdent { AbsGrusGrus.TAlg $1 }
+      | '(' Type ')' { $2 }
+ListType :: { [Type] }
+ListType : {- empty -} { [] }
+         | Type { (:[]) $1 }
+         | Type ',' ListType { (:) $1 $3 }
+Type1 :: { Type }
+Type1 : Type2 { $1 }
+TypeAlgValue :: { TypeAlgValue }
+TypeAlgValue : UIdent { AbsGrusGrus.TAV $1 }
+             | UIdent '(' ListExp ')' { AbsGrusGrus.TAVArgs $1 $3 }
+TypeAlgConstr :: { TypeAlgConstr }
+TypeAlgConstr : UIdent { AbsGrusGrus.TAC $1 }
+              | UIdent '(' ListType ')' { AbsGrusGrus.TACArgs $1 $3 }
 {
 
 returnM :: a -> Err a

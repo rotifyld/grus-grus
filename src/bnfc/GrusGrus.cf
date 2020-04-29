@@ -1,9 +1,14 @@
+-- Identifiers
+
+
+token UIdent (upper (letter | digit | '_')*) ;
 
 
 -- Program
 
 
 comment "//" ;
+
 entrypoints Body ;
 
 Body. Body  ::= [Decl] Exp ;
@@ -17,17 +22,20 @@ terminator Decl "" ;
 DPut.   Decl ::= "put" Exp ";" ;
 DVal.   Decl ::= "val" TypedIdent "=" Exp ";" ;
 DFun.   Decl ::= "fun" Ident "(" [TypedIdent] ")" "->" Type "{" Body "}" ;
+DAlg.   Decl ::= "alg" UIdent "=" [TypeAlgConstr] ";" ;
 
 TypedIdent.     TypedIdent  ::= Ident ":" Type ;
-
 separator TypedIdent "," ;
+
+separator TypeAlgConstr "|" ;
+
 
 
 -- Expressions
 
 
 EIfte.          Exp   ::= "if" Exp "then" Exp "else" Exp ;
--- ECase/EMatch
+ECase.          Exp   ::= "case" Exp "of" "{" [Case] "}" ;
 EOr.            Exp2  ::= Exp2 "||" Exp3 ;
 EAnd.           Exp3  ::= Exp3 "&&" Exp4 ;
 EEq.            Exp4  ::= Exp4 "==" Exp5 ;
@@ -41,15 +49,13 @@ ESub.           Exp6  ::= Exp6 "-" Exp7 ;
 EMult.          Exp7  ::= Exp7 "*" Exp8 ;
 EDiv.           Exp7  ::= Exp7 "/" Exp8 ;
 EMod.           Exp7  ::= Exp7 "%" Exp8 ;
-ENot.           Exp8 ::= "!" Exp9 ;
-ECallIdent.     Exp9  ::= Ident "(" [Exp] ")" ;
-ECallExp.       Exp9  ::= Exp "<~" "(" [Exp] ")" ;
+ECall.          Exp8  ::= Exp "(" [Exp] ")" ;
 ELambda.        Exp9 ::= "(" "\\" [TypedIdent] "~>" Body ")" ;
 EInt.           Exp9 ::= Integer ;
 EBool.          Exp9 ::= Boolean ;
 EUnit.          Exp9 ::= Unit ;
 EVar.           Exp9 ::= Ident ;
--- todo lambda
+EAlg.           Exp8 ::= TypeAlgValue ;
 
 separator Exp "," ;
 coercions Exp 9 ;
@@ -67,6 +73,21 @@ Unit.       Unit ::= "Unit" ;
 -- Types
 
 
-TInt.   Type ::= "Int" ;
-TBool.  Type ::= "Bool" ;
-TArrow. Type ::= Type "->" Type ; -- todo ??
+TArrow.         Type  ::= Type2 "->" Type ;
+TInt.           Type2 ::= "Int" ;
+-- todo Bool ????
+TAlg.           Type2 ::= UIdent ;
+
+
+separator Type "," ;
+coercions Type 2 ;
+
+
+-- Algbraic types
+
+
+TAV.        TypeAlgValue ::= UIdent ;
+TAVArgs.    TypeAlgValue ::= UIdent "(" [Exp] ")" ;
+
+TAC.        TypeAlgConstr ::= UIdent ;
+TACArgs.    TypeAlgConstr ::= UIdent "(" [Type] ")" ;
