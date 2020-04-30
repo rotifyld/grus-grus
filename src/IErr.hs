@@ -13,7 +13,8 @@ data TCError
           { expected :: Type
           , actual :: Type
           }
-    | VariableNotInScopeError String
+    | VariableNotInScopeError Name
+    | AlgebraicNotInScopeError Name
     | NonArrowTypeError Type
     | TooManyArgumentsError Int Int
 
@@ -29,6 +30,7 @@ instance Show TCError where
     show UnexpectedTypeError {expected = etype, actual = atype} =
         unlines ["Unexpected type.", "  Expected:", "    " ++ show etype, "  Actual", "    " ++ show atype]
     show (VariableNotInScopeError vname) = "Variable \"" ++ vname ++ "\" not in scope."
+    show (AlgebraicNotInScopeError aname) = "Algebraic value \"" ++ aname ++ "\" not in scope."
     show (NonArrowTypeError t) =
         unlines ["Expression is not callable.", "  Expected an arrow type.", "  Actual:", "    " ++ show t]
     show (TooManyArgumentsError expected actual) =

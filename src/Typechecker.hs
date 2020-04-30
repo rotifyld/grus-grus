@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 module Typechecker
     ( TypecheckMonad
     , typecheck
@@ -17,20 +19,30 @@ import Utils
 
 data Env =
     Env
-        { vartable :: M.Map Name Type
+        { variableTable :: M.Map Name Type
+        , algebraicTable :: M.Map Name Type
         }
 
 emptyEnv :: Env
-emptyEnv = Env {vartable = M.empty}
+emptyEnv = Env {variableTable = M.empty, algebraicTable = M.empty}
 
 addVariableEnv :: Name -> Type -> Env -> Env
-addVariableEnv vname vtype env@Env {vartable = vtable} = env {vartable = M.insert vname vtype vtable}
+addVariableEnv vname vtype env@Env {variableTable = vtable} = env {variableTable = M.insert vname vtype vtable}
 
 addVariablesEnv :: [Name] -> [Type] -> Env -> Env
 addVariablesEnv vnames vtypes env = foldl (\e (n, t) -> addVariableEnv n t e) env (zip vnames vtypes)
 
 lookupVariableEnv :: Name -> Env -> Maybe Type
-lookupVariableEnv vname Env {vartable = vtable} = M.lookup vname vtable
+lookupVariableEnv vname Env {variableTable = vtable} = M.lookup vname vtable
+
+addAlgebraicEnv :: Name -> Type -> Env -> Env
+addAlgebraicEnv aname atype env@Env {algebraicTable = attable} = env {algebraicTable = M.insert aname atype attable}
+
+addAlgebraicsEnv :: [Name] -> [Type] -> Env -> Env
+addAlgebraicsEnv anames atypes env = foldl (\e (n, t) -> addAlgebraicEnv n t e) env (zip anames atypes)
+
+lookupAlgebraicEnv :: Name -> Env -> Maybe Type
+lookupAlgebraicEnv aname Env {algebraicTable = attable} = M.lookup aname attable
 
 type TypecheckMonad = ReaderT Env (Except IError)
 
@@ -51,7 +63,8 @@ instance Typecheckable ParserType where
 
 guardType :: Type -> Type -> TypecheckMonad ()
 guardType expectedType actualType =
-    when (actualType /= expectedType) $ throwError $ TypecheckError $ UnexpectedTypeError expectedType actualType `debug` "0"
+    when (actualType /= expectedType) $
+    throwError $ TypecheckError $ UnexpectedTypeError expectedType actualType `debug` "0"
 
 guardTypecheckType :: Typecheckable a => Type -> a -> TypecheckMonad ()
 guardTypecheckType expectedType typecheckable = do
@@ -63,8 +76,12 @@ typecheckBinaryOp leftExp rightExp expectedLeftType expectedRightType = do
     guardTypecheckType expectedLeftType leftExp
     guardTypecheckType expectedRightType rightExp
 
--- todo Case
 instance Typecheckable Exp where
+    typecheck (EIfte condition leftExp rightExp) = do
+        guardTypecheckType TBool condition
+        leftType <- typecheck leftExp
+        guardTypecheckType leftType rightExp
+        return leftType
     typecheck (EInt _) = return TInt
     typecheck (EBool _) = return TBool
     typecheck (EVar (Ident vname)) = do
@@ -72,11 +89,11 @@ instance Typecheckable Exp where
         case lookupVariableEnv vname env of
             Nothing -> throwError (TypecheckError $ VariableNotInScopeError vname)
             Just t -> return t
-    typecheck (EIfte condition leftExp rightExp) = do
-        guardTypecheckType TBool condition
-        leftType <- typecheck leftExp
-        guardTypecheckType leftType rightExp
-        return leftType
+    typecheck (EAlg (TAV (UIdent aname))) = do
+        env <- ask
+        case lookupAlgebraicEnv aname env of
+            Nothing -> throwError (TypecheckError $ AlgebraicNotInScopeError aname)
+            Just t -> return t
     typecheck (EOr e1 e2) = typecheckBinaryOp e1 e2 TBool TBool >> return TBool
     typecheck (EAnd e1 e2) = typecheckBinaryOp e1 e2 TBool TBool >> return TBool
     typecheck (EEq e1 e2) = typecheckBinaryOp e1 e2 TInt TInt >> return TBool
@@ -111,7 +128,6 @@ instance Typecheckable Exp where
         bodyType <- local (addVariablesEnv paramNames paramTypes) $ typecheck body
         return $ TArrow paramTypes bodyType
 
---    typecheck (EAlg (TAV (UIdent algValue))) = return $ VAlg algValue []
 --    typecheck (EAlg (TAVArgs (UIdent algValue) exps)) = do
 --        vals <- mapM typecheck exps
 --        return $ VAlg algValue vals
@@ -131,4 +147,16 @@ instance Typecheckable Body where
         local (addVariableEnv funName funType . addVariablesEnv paramNames paramTypes) $
             guardTypecheckType bodyExpectedType body
         return $ TArrow paramTypes bodyExpectedType
---    typecheck (Body (DAlg algType algValues:ds) bodyExp) = typecheck (Body ds bodyExp)
+    typecheck (Body (DAlg (UIdent typeName) values:ds) bodyExp) = do
+        let algType = TAlgebraic typeName
+        let valueNames = map getName values
+        let valueParamPTypes = map getPTypes values
+        valueParamTypes <- mapM (mapM typecheck) valueParamPTypes
+        let valueTypes =
+                map
+                    (\types ->
+                         if null types
+                             then algType
+                             else TArrow types algType)
+                    valueParamTypes
+        local (addAlgebraicsEnv valueNames valueTypes) $ typecheck (Body ds bodyExp)
