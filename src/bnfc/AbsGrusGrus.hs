@@ -24,6 +24,7 @@ data TypedIdent = TypedIdent Ident Type
 
 data Exp
     = EIfte Exp Exp Exp
+    | ECase Exp [Case]
     | EOr Exp Exp
     | EAnd Exp Exp
     | EEq Exp Exp
@@ -44,6 +45,9 @@ data Exp
     | EUnit Unit
     | EVar Ident
     | EAlg TypeAlgValue
+  deriving (Eq, Ord, Show, Read)
+
+data Case = Case Exp Exp
   deriving (Eq, Ord, Show, Read)
 
 data Boolean = BTrue | BFalse

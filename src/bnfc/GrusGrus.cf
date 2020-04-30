@@ -60,6 +60,11 @@ EAlg.           Exp8 ::= TypeAlgValue ;
 separator Exp "," ;
 coercions Exp 9 ;
 
+-- Case Expression
+
+Case.           Case ::= Exp "~>" Exp ;
+separator Case ";" ;
+
 
 -- Primitive types
 

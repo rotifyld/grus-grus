@@ -13,7 +13,11 @@ import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
 
 import AbsGrusGrus
+import Debug.Trace (trace)
 import InterpreterError
+
+-- TODO TMP
+debug = flip trace
 
 data RuntimeException =
     DivideByZero
@@ -82,6 +86,9 @@ findEnv ident = do
 modifyEnv :: Identifier -> Value -> Env -> Env
 modifyEnv = M.insert
 
+unionEnv :: Env -> Env -> Env
+unionEnv = M.union
+
 type ExecuteM = ReaderT Env (ExceptT IError IO)
 
 runExecuteM :: ExecuteM a -> IO (Either IError a)
@@ -107,14 +114,37 @@ instance Executable Body where
         local (modifyEnv fident (VFun fun)) $ execute (Body ds bodyExp)
     execute (Body (DAlg algType algValues:ds) bodyExp) = execute (Body ds bodyExp)
 
+buildMatch :: Value -> Exp -> StateT Env Maybe ()
+buildMatch val (EVar (Ident var)) = do
+    modify $ modifyEnv var val
+    return ()
+buildMatch (VInt intV) (EInt intE)
+    | intV == intE = return ()
+buildMatch (VBool True) (EBool BTrue) = return ()
+buildMatch (VBool False) (EBool BFalse) = return ()
+buildMatch VUnit (EUnit _) = return ()
+buildMatch (VAlg algvalV []) (EAlg (TAV (UIdent algvalE)))
+    | algvalV == algvalE = return ()
+buildMatch (VAlg algV vals) (EAlg (TAVArgs (UIdent algE) exps))
+    | algV == algE = mapM_ (uncurry buildMatch) (zip vals exps)
+buildMatch _ _ = throwError ()
+
+-- TODO branch exectuion
+executeCase :: Value -> [Case] -> ExecuteM Value
+executeCase val (Case matching body:cases) =
+    case runStateT (buildMatch val matching) emptyEnv of
+        Nothing -> executeCase val cases
+        Just ((), env) -> local (unionEnv env) $ execute body
+executeCase val [] = throwError (IEError TMPNoPatternMatched)
+
 executeBinaryOp :: (RuntimeExtract a) => Exp -> Exp -> (a -> a -> b) -> (b -> Value) -> ExecuteM Value
 executeBinaryOp e1 e2 op value = do
     v1 <- execute e1
     v2 <- execute e2
     return $ value $ extract v1 `op` extract v2
 
-callFunction :: Function -> [Exp] -> ExecuteM Value
-callFunction fun@(Function mIdent params body env) exps = do
+executeFunctionCall :: Function -> [Exp] -> ExecuteM Value
+executeFunctionCall fun@(Function mIdent params body env) exps = do
     vals <- mapM execute exps
     let env0 =
             case mIdent of
@@ -136,6 +166,9 @@ instance Executable Exp where
         if extract vb
             then execute e1
             else execute e2
+    execute (ECase exp cases) = do
+        val <- execute exp
+        executeCase val cases
     execute (EOr e1 e2) = executeBinaryOp e1 e2 (||) VBool
     execute (EAnd e1 e2) = executeBinaryOp e1 e2 (&&) VBool
     execute (EEq e1 e2) = executeBinaryOp e1 e2 ((==) :: Integer -> Integer -> Bool) VBool
@@ -155,7 +188,7 @@ instance Executable Exp where
     execute (EMod e1 e2) = executeBinaryOp e1 e2 mod VInt
     execute (ECall exp exps) = do
         vfun <- execute exp
-        callFunction (extract vfun) exps
+        executeFunctionCall (extract vfun) exps
     execute (ELambda paramsTyped body) = do
         env <- ask
         let params = map getIdentifier paramsTyped

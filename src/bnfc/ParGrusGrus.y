@@ -38,17 +38,19 @@ import ErrM
   'Unit' { PT _ (TS _ 23) }
   '\\' { PT _ (TS _ 24) }
   'alg' { PT _ (TS _ 25) }
-  'else' { PT _ (TS _ 26) }
-  'fun' { PT _ (TS _ 27) }
-  'if' { PT _ (TS _ 28) }
-  'put' { PT _ (TS _ 29) }
-  'then' { PT _ (TS _ 30) }
-  'val' { PT _ (TS _ 31) }
-  '{' { PT _ (TS _ 32) }
-  '|' { PT _ (TS _ 33) }
-  '||' { PT _ (TS _ 34) }
-  '}' { PT _ (TS _ 35) }
-  '~>' { PT _ (TS _ 36) }
+  'case' { PT _ (TS _ 26) }
+  'else' { PT _ (TS _ 27) }
+  'fun' { PT _ (TS _ 28) }
+  'if' { PT _ (TS _ 29) }
+  'of' { PT _ (TS _ 30) }
+  'put' { PT _ (TS _ 31) }
+  'then' { PT _ (TS _ 32) }
+  'val' { PT _ (TS _ 33) }
+  '{' { PT _ (TS _ 34) }
+  '|' { PT _ (TS _ 35) }
+  '||' { PT _ (TS _ 36) }
+  '}' { PT _ (TS _ 37) }
+  '~>' { PT _ (TS _ 38) }
   L_ident  { PT _ (TV $$) }
   L_integ  { PT _ (TI $$) }
   L_UIdent { PT _ (T_UIdent $$) }
@@ -85,6 +87,7 @@ ListTypeAlgConstr : {- empty -} { [] }
                   | TypeAlgConstr '|' ListTypeAlgConstr { (:) $1 $3 }
 Exp :: { Exp }
 Exp : 'if' Exp 'then' Exp 'else' Exp { AbsGrusGrus.EIfte $2 $4 $6 }
+    | 'case' Exp 'of' '{' ListCase '}' { AbsGrusGrus.ECase $2 $5 }
     | Exp1 { $1 }
 Exp2 :: { Exp }
 Exp2 : Exp2 '||' Exp3 { AbsGrusGrus.EOr $1 $3 } | Exp3 { $1 }
@@ -126,6 +129,12 @@ ListExp : {- empty -} { [] }
         | Exp ',' ListExp { (:) $1 $3 }
 Exp1 :: { Exp }
 Exp1 : Exp2 { $1 }
+Case :: { Case }
+Case : Exp '~>' Exp { AbsGrusGrus.Case $1 $3 }
+ListCase :: { [Case] }
+ListCase : {- empty -} { [] }
+         | Case { (:[]) $1 }
+         | Case ';' ListCase { (:) $1 $3 }
 Boolean :: { Boolean }
 Boolean : 'True' { AbsGrusGrus.BTrue }
         | 'False' { AbsGrusGrus.BFalse }

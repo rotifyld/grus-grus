@@ -126,6 +126,7 @@ instance Print [AbsGrusGrus.TypeAlgConstr] where
 instance Print AbsGrusGrus.Exp where
   prt i e = case e of
     AbsGrusGrus.EIfte exp1 exp2 exp3 -> prPrec i 0 (concatD [doc (showString "if"), prt 0 exp1, doc (showString "then"), prt 0 exp2, doc (showString "else"), prt 0 exp3])
+    AbsGrusGrus.ECase exp cases -> prPrec i 0 (concatD [doc (showString "case"), prt 0 exp, doc (showString "of"), doc (showString "{"), prt 0 cases, doc (showString "}")])
     AbsGrusGrus.EOr exp1 exp2 -> prPrec i 2 (concatD [prt 2 exp1, doc (showString "||"), prt 3 exp2])
     AbsGrusGrus.EAnd exp1 exp2 -> prPrec i 3 (concatD [prt 3 exp1, doc (showString "&&"), prt 4 exp2])
     AbsGrusGrus.EEq exp1 exp2 -> prPrec i 4 (concatD [prt 4 exp1, doc (showString "=="), prt 5 exp2])
@@ -151,6 +152,16 @@ instance Print AbsGrusGrus.Exp where
   prtList _ (x:xs) = concatD [prt 0 x, doc (showString ","), prt 0 xs]
 
 instance Print [AbsGrusGrus.Exp] where
+  prt = prtList
+
+instance Print AbsGrusGrus.Case where
+  prt i e = case e of
+    AbsGrusGrus.Case exp1 exp2 -> prPrec i 0 (concatD [prt 0 exp1, doc (showString "~>"), prt 0 exp2])
+  prtList _ [] = concatD []
+  prtList _ [x] = concatD [prt 0 x]
+  prtList _ (x:xs) = concatD [prt 0 x, doc (showString ";"), prt 0 xs]
+
+instance Print [AbsGrusGrus.Case] where
   prt = prtList
 
 instance Print AbsGrusGrus.Boolean where
