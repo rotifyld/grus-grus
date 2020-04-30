@@ -3,10 +3,16 @@ module Utils
     , Name
     , getName
     , getPType
+    , debug -- tmp
     ) where
 
-import AbsGrusGrus
 import Data.List (intercalate)
+import Debug.Trace (trace, traceStack)
+
+import AbsGrusGrus
+
+-- TODO TMP
+debug = flip traceStack
 
 type Name = String
 

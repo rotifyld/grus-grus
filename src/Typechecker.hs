@@ -49,15 +49,19 @@ instance Typecheckable ParserType where
         rightType <- typecheck rightPType
         return $ TArrow [leftType] rightType
 
-guardType :: Typecheckable a => Type -> a -> TypecheckMonad ()
-guardType expectedType typecheckable = do
+guardType :: Type -> Type -> TypecheckMonad ()
+guardType expectedType actualType =
+    when (actualType /= expectedType) $ throwError $ TypecheckError $ UnexpectedTypeError expectedType actualType `debug` "0"
+
+guardTypecheckType :: Typecheckable a => Type -> a -> TypecheckMonad ()
+guardTypecheckType expectedType typecheckable = do
     actualType <- typecheck typecheckable
-    when (actualType /= expectedType) $ throwError $ TypecheckError $ UnexpectedTypeError expectedType actualType
+    guardType expectedType actualType
 
 typecheckBinaryOp :: Exp -> Exp -> Type -> Type -> TypecheckMonad ()
 typecheckBinaryOp leftExp rightExp expectedLeftType expectedRightType = do
-    guardType expectedLeftType leftExp
-    guardType expectedRightType rightExp
+    guardTypecheckType expectedLeftType leftExp
+    guardTypecheckType expectedRightType rightExp
 
 -- todo Case
 instance Typecheckable Exp where
@@ -69,9 +73,9 @@ instance Typecheckable Exp where
             Nothing -> throwError (TypecheckError $ VariableNotInScopeError vname)
             Just t -> return t
     typecheck (EIfte condition leftExp rightExp) = do
-        guardType TBool condition
+        guardTypecheckType TBool condition
         leftType <- typecheck leftExp
-        guardType leftType rightExp
+        guardTypecheckType leftType rightExp
         return leftType
     typecheck (EOr e1 e2) = typecheckBinaryOp e1 e2 TBool TBool >> return TBool
     typecheck (EAnd e1 e2) = typecheckBinaryOp e1 e2 TBool TBool >> return TBool
@@ -95,18 +99,17 @@ instance Typecheckable Exp where
                 let ordSuppliedArguments = compare numExpectedArgs numActualArgs
                 when (numExpectedArgs < numActualArgs) $
                     throwError $ TypecheckError $ TooManyArgumentsError numExpectedArgs numActualArgs
-                mapM_ (uncurry guardType) (zip argExpectedTypes argExpressions)
+                mapM_ (uncurry guardTypecheckType) (zip argExpectedTypes argExpressions)
                 if numExpectedArgs == numActualArgs
                     then return resultExpectedType
                     else return $ TArrow (drop numActualArgs argExpectedTypes) resultExpectedType
             _ -> throwError $ TypecheckError $ NonArrowTypeError funType
     typecheck (ELambda typedParams body) = do
-        env <- ask
-        let names = map getName typedParams
-        let ptypes = map getPType typedParams
-        types <- mapM typecheck ptypes
-        bodyType <- local (addVariablesEnv names types) $ typecheck body
-        return $ TArrow types bodyType
+        let paramNames = map getName typedParams
+        let paramPTypes = map getPType typedParams
+        paramTypes <- mapM typecheck paramPTypes
+        bodyType <- local (addVariablesEnv paramNames paramTypes) $ typecheck body
+        return $ TArrow paramTypes bodyType
 
 --    typecheck (EAlg (TAV (UIdent algValue))) = return $ VAlg algValue []
 --    typecheck (EAlg (TAVArgs (UIdent algValue) exps)) = do
@@ -117,11 +120,15 @@ instance Typecheckable Body where
     typecheck (Body (DPut _:ds) e) = typecheck (Body ds e)
     typecheck (Body (DVal (TypedIdent (Ident valName) expectedPType) valExp:ds) bodyExp) = do
         expectedType <- typecheck expectedPType
-        guardType expectedType valExp
+        guardTypecheckType expectedType valExp
         local (addVariableEnv valName expectedType) $ typecheck (Body ds bodyExp)
---    typecheck (Body (DFun (Ident fident) paramsTyped _ fbody:ds) bodyExp) = do
---        env <- ask
---        let params = map getIdentifier paramsTyped
---        let fun = Function (Just fident) params fbody env
---        local (modifyEnv fident (VFun fun)) $ typecheck (Body ds bodyExp)
+    typecheck (Body (DFun (Ident funName) typedParams bodyPType body:ds) bodyExp) = do
+        bodyExpectedType <- typecheck bodyPType
+        let paramNames = map getName typedParams
+        let paramPTypes = map getPType typedParams
+        paramTypes <- mapM typecheck paramPTypes
+        let funType = TArrow paramTypes bodyExpectedType
+        local (addVariableEnv funName funType . addVariablesEnv paramNames paramTypes) $
+            guardTypecheckType bodyExpectedType body
+        return $ TArrow paramTypes bodyExpectedType
 --    typecheck (Body (DAlg algType algValues:ds) bodyExp) = typecheck (Body ds bodyExp)

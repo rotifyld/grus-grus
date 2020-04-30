@@ -32,4 +32,6 @@ runInterpreter :: Body -> IO (Either IError Value)
 runInterpreter body =
     case runTypecheckM (typecheck body) of
         (Left err) -> return $ Left err
-        (Right _) -> runExecuteM (execute body)
+        (Right t) -> do
+            putStrLn $ ":: " ++ show t
+            runExecuteM (execute body)

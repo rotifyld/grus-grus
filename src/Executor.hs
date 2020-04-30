@@ -10,14 +10,10 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.List (intercalate)
 import qualified Data.Map as M
-import Debug.Trace (trace)
 
 import AbsGrusGrus
 import IErr
 import Utils
-
--- TODO TMP
-debug = flip trace
 
 data Value
     = VInt Integer
