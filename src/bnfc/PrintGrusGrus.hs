@@ -105,7 +105,7 @@ instance Print AbsGrusGrus.Decl where
   prt i e = case e of
     AbsGrusGrus.DPut exp -> prPrec i 0 (concatD [doc (showString "put"), prt 0 exp, doc (showString ";")])
     AbsGrusGrus.DVal typedident exp -> prPrec i 0 (concatD [doc (showString "val"), prt 0 typedident, doc (showString "="), prt 0 exp, doc (showString ";")])
-    AbsGrusGrus.DFun id typedidents type_ body -> prPrec i 0 (concatD [doc (showString "fun"), prt 0 id, doc (showString "("), prt 0 typedidents, doc (showString ")"), doc (showString "->"), prt 0 type_, doc (showString "{"), prt 0 body, doc (showString "}")])
+    AbsGrusGrus.DFun id typedidents type_ body -> prPrec i 0 (concatD [doc (showString "fun"), prt 0 id, doc (showString "("), prt 0 typedidents, doc (showString ")"), doc (showString ":"), prt 0 type_, doc (showString "{"), prt 0 body, doc (showString "}")])
     AbsGrusGrus.DAlg uident typealgconstrs -> prPrec i 0 (concatD [doc (showString "alg"), prt 0 uident, doc (showString "="), prt 0 typealgconstrs, doc (showString ";")])
   prtList _ [] = concatD []
   prtList _ (x:xs) = concatD [prt 0 x, prt 0 xs]
@@ -144,7 +144,6 @@ instance Print AbsGrusGrus.Exp where
     AbsGrusGrus.ELambda typedidents body -> prPrec i 9 (concatD [doc (showString "("), doc (showString "\\"), prt 0 typedidents, doc (showString "~>"), prt 0 body, doc (showString ")")])
     AbsGrusGrus.EInt n -> prPrec i 9 (concatD [prt 0 n])
     AbsGrusGrus.EBool boolean -> prPrec i 9 (concatD [prt 0 boolean])
-    AbsGrusGrus.EUnit unit -> prPrec i 9 (concatD [prt 0 unit])
     AbsGrusGrus.EVar id -> prPrec i 9 (concatD [prt 0 id])
     AbsGrusGrus.EAlg typealgvalue -> prPrec i 8 (concatD [prt 0 typealgvalue])
   prtList _ [] = concatD []
@@ -177,6 +176,7 @@ instance Print AbsGrusGrus.Type where
   prt i e = case e of
     AbsGrusGrus.TArrow type_1 type_2 -> prPrec i 0 (concatD [prt 2 type_1, doc (showString "->"), prt 0 type_2])
     AbsGrusGrus.TInt -> prPrec i 2 (concatD [doc (showString "Int")])
+    AbsGrusGrus.TBool -> prPrec i 2 (concatD [doc (showString "Bool")])
     AbsGrusGrus.TAlg uident -> prPrec i 2 (concatD [prt 0 uident])
   prtList _ [] = concatD []
   prtList _ [x] = concatD [prt 0 x]

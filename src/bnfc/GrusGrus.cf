@@ -21,7 +21,7 @@ terminator Decl "" ;
 
 DPut.   Decl ::= "put" Exp ";" ;
 DVal.   Decl ::= "val" TypedIdent "=" Exp ";" ;
-DFun.   Decl ::= "fun" Ident "(" [TypedIdent] ")" "->" Type "{" Body "}" ;
+DFun.   Decl ::= "fun" Ident "(" [TypedIdent] ")" ":" Type "{" Body "}" ;
 DAlg.   Decl ::= "alg" UIdent "=" [TypeAlgConstr] ";" ;
 
 TypedIdent.     TypedIdent  ::= Ident ":" Type ;
@@ -53,7 +53,6 @@ ECall.          Exp8  ::= Exp "(" [Exp] ")" ;
 ELambda.        Exp9 ::= "(" "\\" [TypedIdent] "~>" Body ")" ;
 EInt.           Exp9 ::= Integer ;
 EBool.          Exp9 ::= Boolean ;
-EUnit.          Exp9 ::= Unit ;
 EVar.           Exp9 ::= Ident ;
 EAlg.           Exp8 ::= TypeAlgValue ;
 
@@ -80,7 +79,7 @@ Unit.       Unit ::= "Unit" ;
 
 TArrow.         Type  ::= Type2 "->" Type ;
 TInt.           Type2 ::= "Int" ;
--- todo Bool ????
+TBool.          Type2 ::= "Bool" ;
 TAlg.           Type2 ::= UIdent ;
 
 

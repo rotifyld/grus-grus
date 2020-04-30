@@ -19,20 +19,15 @@ import InterpreterError
 -- TODO TMP
 debug = flip trace
 
-data RuntimeException =
-    DivideByZero
-
 data Value
     = VInt Integer
     | VBool Bool
-    | VUnit
     | VFun Function
     | VAlg String [Value]
 
 instance Show Value where
     show (VInt int) = show int
     show (VBool bool) = show bool
-    show VUnit = "Unit"
     show (VFun (Function (Just name) _ _ _)) = "Function \"" ++ name ++ "\""
     show (VFun (Function Nothing _ _ _)) = "Anonymous function"
     show (VAlg name []) = name
@@ -57,10 +52,6 @@ instance RuntimeExtract Integer where
 instance RuntimeExtract Bool where
     extract (VBool b) = b
     extract _ = error "TMP runtime extract bool"
-
-instance RuntimeExtract () where
-    extract VUnit = ()
-    extract _ = error "TMP runtime extract unit"
 
 instance RuntimeExtract Function where
     extract (VFun fun) = fun
@@ -122,7 +113,6 @@ buildMatch (VInt intV) (EInt intE)
     | intV == intE = return ()
 buildMatch (VBool True) (EBool BTrue) = return ()
 buildMatch (VBool False) (EBool BFalse) = return ()
-buildMatch VUnit (EUnit _) = return ()
 buildMatch (VAlg algvalV []) (EAlg (TAV (UIdent algvalE)))
     | algvalV == algvalE = return ()
 buildMatch (VAlg algV vals) (EAlg (TAVArgs (UIdent algE) exps))
@@ -197,7 +187,6 @@ instance Executable Exp where
     execute (EInt i) = return $ VInt i
     execute (EBool BTrue) = return $ VBool True
     execute (EBool BFalse) = return $ VBool False
-    execute (EUnit _) = return VUnit
     execute (EVar (Ident name)) = findEnv name
     execute (EAlg (TAV (UIdent algValue))) = return $ VAlg algValue []
     execute (EAlg (TAVArgs (UIdent algValue) exps)) = do

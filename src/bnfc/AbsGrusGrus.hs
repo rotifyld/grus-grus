@@ -42,7 +42,6 @@ data Exp
     | ELambda [TypedIdent] Body
     | EInt Integer
     | EBool Boolean
-    | EUnit Unit
     | EVar Ident
     | EAlg TypeAlgValue
   deriving (Eq, Ord, Show, Read)
@@ -56,7 +55,7 @@ data Boolean = BTrue | BFalse
 data Unit = Unit
   deriving (Eq, Ord, Show, Read)
 
-data Type = TArrow Type Type | TInt | TAlg UIdent
+data Type = TArrow Type Type | TInt | TBool | TAlg UIdent
   deriving (Eq, Ord, Show, Read)
 
 data TypeAlgValue = TAV UIdent | TAVArgs UIdent [Exp]

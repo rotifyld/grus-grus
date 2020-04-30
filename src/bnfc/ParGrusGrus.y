@@ -32,25 +32,26 @@ import ErrM
   '==' { PT _ (TS _ 17) }
   '>' { PT _ (TS _ 18) }
   '>=' { PT _ (TS _ 19) }
-  'False' { PT _ (TS _ 20) }
-  'Int' { PT _ (TS _ 21) }
-  'True' { PT _ (TS _ 22) }
-  'Unit' { PT _ (TS _ 23) }
-  '\\' { PT _ (TS _ 24) }
-  'alg' { PT _ (TS _ 25) }
-  'case' { PT _ (TS _ 26) }
-  'else' { PT _ (TS _ 27) }
-  'fun' { PT _ (TS _ 28) }
-  'if' { PT _ (TS _ 29) }
-  'of' { PT _ (TS _ 30) }
-  'put' { PT _ (TS _ 31) }
-  'then' { PT _ (TS _ 32) }
-  'val' { PT _ (TS _ 33) }
-  '{' { PT _ (TS _ 34) }
-  '|' { PT _ (TS _ 35) }
-  '||' { PT _ (TS _ 36) }
-  '}' { PT _ (TS _ 37) }
-  '~>' { PT _ (TS _ 38) }
+  'Bool' { PT _ (TS _ 20) }
+  'False' { PT _ (TS _ 21) }
+  'Int' { PT _ (TS _ 22) }
+  'True' { PT _ (TS _ 23) }
+  'Unit' { PT _ (TS _ 24) }
+  '\\' { PT _ (TS _ 25) }
+  'alg' { PT _ (TS _ 26) }
+  'case' { PT _ (TS _ 27) }
+  'else' { PT _ (TS _ 28) }
+  'fun' { PT _ (TS _ 29) }
+  'if' { PT _ (TS _ 30) }
+  'of' { PT _ (TS _ 31) }
+  'put' { PT _ (TS _ 32) }
+  'then' { PT _ (TS _ 33) }
+  'val' { PT _ (TS _ 34) }
+  '{' { PT _ (TS _ 35) }
+  '|' { PT _ (TS _ 36) }
+  '||' { PT _ (TS _ 37) }
+  '}' { PT _ (TS _ 38) }
+  '~>' { PT _ (TS _ 39) }
   L_ident  { PT _ (TV $$) }
   L_integ  { PT _ (TI $$) }
   L_UIdent { PT _ (T_UIdent $$) }
@@ -73,7 +74,7 @@ ListDecl : {- empty -} { [] } | ListDecl Decl { flip (:) $1 $2 }
 Decl :: { Decl }
 Decl : 'put' Exp ';' { AbsGrusGrus.DPut $2 }
      | 'val' TypedIdent '=' Exp ';' { AbsGrusGrus.DVal $2 $4 }
-     | 'fun' Ident '(' ListTypedIdent ')' '->' Type '{' Body '}' { AbsGrusGrus.DFun $2 $4 $7 $9 }
+     | 'fun' Ident '(' ListTypedIdent ')' ':' Type '{' Body '}' { AbsGrusGrus.DFun $2 $4 $7 $9 }
      | 'alg' UIdent '=' ListTypeAlgConstr ';' { AbsGrusGrus.DAlg $2 $4 }
 TypedIdent :: { TypedIdent }
 TypedIdent : Ident ':' Type { AbsGrusGrus.TypedIdent $1 $3 }
@@ -120,7 +121,6 @@ Exp9 :: { Exp }
 Exp9 : '(' '\\' ListTypedIdent '~>' Body ')' { AbsGrusGrus.ELambda $3 $5 }
      | Integer { AbsGrusGrus.EInt $1 }
      | Boolean { AbsGrusGrus.EBool $1 }
-     | Unit { AbsGrusGrus.EUnit $1 }
      | Ident { AbsGrusGrus.EVar $1 }
      | '(' Exp ')' { $2 }
 ListExp :: { [Exp] }
@@ -144,6 +144,7 @@ Type :: { Type }
 Type : Type2 '->' Type { AbsGrusGrus.TArrow $1 $3 } | Type1 { $1 }
 Type2 :: { Type }
 Type2 : 'Int' { AbsGrusGrus.TInt }
+      | 'Bool' { AbsGrusGrus.TBool }
       | UIdent { AbsGrusGrus.TAlg $1 }
       | '(' Type ')' { $2 }
 ListType :: { [Type] }
