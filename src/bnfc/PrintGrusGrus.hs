@@ -105,14 +105,14 @@ instance Print AbsGrusGrus.Decl where
   prt i e = case e of
     AbsGrusGrus.DPut exp -> prPrec i 0 (concatD [doc (showString "put"), prt 0 exp, doc (showString ";")])
     AbsGrusGrus.DVal typedident exp -> prPrec i 0 (concatD [doc (showString "val"), prt 0 typedident, doc (showString "="), prt 0 exp, doc (showString ";")])
-    AbsGrusGrus.DFun id typedidents type_ body -> prPrec i 0 (concatD [doc (showString "fun"), prt 0 id, doc (showString "("), prt 0 typedidents, doc (showString ")"), doc (showString ":"), prt 0 type_, doc (showString "{"), prt 0 body, doc (showString "}")])
+    AbsGrusGrus.DFun id typedidents parsertype body -> prPrec i 0 (concatD [doc (showString "fun"), prt 0 id, doc (showString "("), prt 0 typedidents, doc (showString ")"), doc (showString ":"), prt 0 parsertype, doc (showString "{"), prt 0 body, doc (showString "}")])
     AbsGrusGrus.DAlg uident typealgconstrs -> prPrec i 0 (concatD [doc (showString "alg"), prt 0 uident, doc (showString "="), prt 0 typealgconstrs, doc (showString ";")])
   prtList _ [] = concatD []
   prtList _ (x:xs) = concatD [prt 0 x, prt 0 xs]
 
 instance Print AbsGrusGrus.TypedIdent where
   prt i e = case e of
-    AbsGrusGrus.TypedIdent id type_ -> prPrec i 0 (concatD [prt 0 id, doc (showString ":"), prt 0 type_])
+    AbsGrusGrus.TypedIdent id parsertype -> prPrec i 0 (concatD [prt 0 id, doc (showString ":"), prt 0 parsertype])
   prtList _ [] = concatD []
   prtList _ [x] = concatD [prt 0 x]
   prtList _ (x:xs) = concatD [prt 0 x, doc (showString ","), prt 0 xs]
@@ -172,17 +172,17 @@ instance Print AbsGrusGrus.Unit where
   prt i e = case e of
     AbsGrusGrus.Unit -> prPrec i 0 (concatD [doc (showString "Unit")])
 
-instance Print AbsGrusGrus.Type where
+instance Print AbsGrusGrus.ParserType where
   prt i e = case e of
-    AbsGrusGrus.TArrow type_1 type_2 -> prPrec i 0 (concatD [prt 2 type_1, doc (showString "->"), prt 0 type_2])
-    AbsGrusGrus.TInt -> prPrec i 2 (concatD [doc (showString "Int")])
-    AbsGrusGrus.TBool -> prPrec i 2 (concatD [doc (showString "Bool")])
-    AbsGrusGrus.TAlg uident -> prPrec i 2 (concatD [prt 0 uident])
+    AbsGrusGrus.PTArrow parsertype1 parsertype2 -> prPrec i 0 (concatD [prt 2 parsertype1, doc (showString "->"), prt 0 parsertype2])
+    AbsGrusGrus.PTInt -> prPrec i 2 (concatD [doc (showString "Int")])
+    AbsGrusGrus.PTBool -> prPrec i 2 (concatD [doc (showString "Bool")])
+    AbsGrusGrus.PTAlg uident -> prPrec i 2 (concatD [prt 0 uident])
   prtList _ [] = concatD []
   prtList _ [x] = concatD [prt 0 x]
   prtList _ (x:xs) = concatD [prt 0 x, doc (showString ","), prt 0 xs]
 
-instance Print [AbsGrusGrus.Type] where
+instance Print [AbsGrusGrus.ParserType] where
   prt = prtList
 
 instance Print AbsGrusGrus.TypeAlgValue where
@@ -193,7 +193,7 @@ instance Print AbsGrusGrus.TypeAlgValue where
 instance Print AbsGrusGrus.TypeAlgConstr where
   prt i e = case e of
     AbsGrusGrus.TAC uident -> prPrec i 0 (concatD [prt 0 uident])
-    AbsGrusGrus.TACArgs uident types -> prPrec i 0 (concatD [prt 0 uident, doc (showString "("), prt 0 types, doc (showString ")")])
+    AbsGrusGrus.TACArgs uident parsertypes -> prPrec i 0 (concatD [prt 0 uident, doc (showString "("), prt 0 parsertypes, doc (showString ")")])
   prtList _ [] = concatD []
   prtList _ [x] = concatD [prt 0 x]
   prtList _ (x:xs) = concatD [prt 0 x, doc (showString "|"), prt 0 xs]

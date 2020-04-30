@@ -15,11 +15,11 @@ data Body = Body [Decl] Exp
 data Decl
     = DPut Exp
     | DVal TypedIdent Exp
-    | DFun Ident [TypedIdent] Type Body
+    | DFun Ident [TypedIdent] ParserType Body
     | DAlg UIdent [TypeAlgConstr]
   deriving (Eq, Ord, Show, Read)
 
-data TypedIdent = TypedIdent Ident Type
+data TypedIdent = TypedIdent Ident ParserType
   deriving (Eq, Ord, Show, Read)
 
 data Exp
@@ -55,12 +55,13 @@ data Boolean = BTrue | BFalse
 data Unit = Unit
   deriving (Eq, Ord, Show, Read)
 
-data Type = TArrow Type Type | TInt | TBool | TAlg UIdent
+data ParserType
+    = PTArrow ParserType ParserType | PTInt | PTBool | PTAlg UIdent
   deriving (Eq, Ord, Show, Read)
 
 data TypeAlgValue = TAV UIdent | TAVArgs UIdent [Exp]
   deriving (Eq, Ord, Show, Read)
 
-data TypeAlgConstr = TAC UIdent | TACArgs UIdent [Type]
+data TypeAlgConstr = TAC UIdent | TACArgs UIdent [ParserType]
   deriving (Eq, Ord, Show, Read)
 

@@ -10,11 +10,11 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.List (intercalate)
 import qualified Data.Map as M
-import Data.Maybe (fromMaybe)
+import Debug.Trace (trace)
 
 import AbsGrusGrus
-import Debug.Trace (trace)
-import InterpreterError
+import IErr
+import Utils
 
 -- TODO TMP
 debug = flip trace
@@ -29,17 +29,12 @@ instance Show Value where
     show (VInt int) = show int
     show (VBool bool) = show bool
     show (VFun (Function (Just name) _ _ _)) = "Function \"" ++ name ++ "\""
-    show (VFun (Function Nothing _ _ _)) = "Anonymous function"
+    show (VFun (Function Nothing _ _ _)) = "Anonymous function."
     show (VAlg name []) = name
     show (VAlg name vals) = name ++ "(" ++ (intercalate ", " . map show) vals ++ ")"
 
-type Identifier = String
-
-getIdentifier :: TypedIdent -> Identifier
-getIdentifier (TypedIdent (Ident ident) _) = ident
-
 data Function =
-    Function (Maybe Identifier) [Identifier] Body Env
+    Function (Maybe Name) [Name] Body Env
     deriving (Show)
 
 class RuntimeExtract a where
@@ -59,12 +54,12 @@ instance RuntimeExtract Function where
 
 type Loc = Int
 
-type Env = M.Map Identifier Value
+type Env = M.Map Name Value
 
 emptyEnv :: Env
 emptyEnv = M.empty
 
-lookupEnv :: Identifier -> ExecuteM (Maybe Value)
+lookupEnv :: Name -> ExecuteM (Maybe Value)
 lookupEnv ident = asks (M.lookup ident)
 
 findEnv :: String -> ExecuteM Value
@@ -74,7 +69,7 @@ findEnv ident = do
         Just val -> return val
         Nothing -> error "TMP variable not in env"
 
-modifyEnv :: Identifier -> Value -> Env -> Env
+modifyEnv :: Name -> Value -> Env -> Env
 modifyEnv = M.insert
 
 unionEnv :: Env -> Env -> Env
@@ -96,15 +91,16 @@ instance Executable Body where
         execute (Body ds bodyExp)
     execute (Body (DVal typedIdent dExp:ds) bodyExp) = do
         v <- execute dExp
-        let ident = getIdentifier typedIdent
+        let ident = getName typedIdent
         local (modifyEnv ident v) $ execute (Body ds bodyExp)
     execute (Body (DFun (Ident fident) paramsTyped _ fbody:ds) bodyExp) = do
         env <- ask
-        let params = map getIdentifier paramsTyped
+        let params = map getName paramsTyped
         let fun = Function (Just fident) params fbody env
         local (modifyEnv fident (VFun fun)) $ execute (Body ds bodyExp)
     execute (Body (DAlg algType algValues:ds) bodyExp) = execute (Body ds bodyExp)
 
+-- todo matchM
 buildMatch :: Value -> Exp -> StateT Env Maybe ()
 buildMatch val (EVar (Ident var)) = do
     modify $ modifyEnv var val
@@ -125,7 +121,7 @@ executeCase val (Case matching body:cases) =
     case runStateT (buildMatch val matching) emptyEnv of
         Nothing -> executeCase val cases
         Just ((), env) -> local (unionEnv env) $ execute body
-executeCase val [] = throwError (IEError TMPNoPatternMatched)
+executeCase val [] = throwError (ExecutionError NoPatternMatcherErrorTMP)
 
 executeBinaryOp :: (RuntimeExtract a) => Exp -> Exp -> (a -> a -> b) -> (b -> Value) -> ExecuteM Value
 executeBinaryOp e1 e2 op value = do
@@ -173,7 +169,7 @@ instance Executable Exp where
     execute (EDiv e1 e2) = do
         v2 <- execute e2
         if (extract v2 :: Integer) == 0
-            then throwError (IEError DivByZero)
+            then throwError (ExecutionError DivideByZeroError)
             else executeBinaryOp e1 e2 div VInt
     execute (EMod e1 e2) = executeBinaryOp e1 e2 mod VInt
     execute (ECall exp exps) = do
@@ -181,7 +177,7 @@ instance Executable Exp where
         executeFunctionCall (extract vfun) exps
     execute (ELambda paramsTyped body) = do
         env <- ask
-        let params = map getIdentifier paramsTyped
+        let params = map getName paramsTyped
         let fun = Function Nothing params body env
         return $ VFun fun
     execute (EInt i) = return $ VInt i

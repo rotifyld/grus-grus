@@ -21,10 +21,10 @@ terminator Decl "" ;
 
 DPut.   Decl ::= "put" Exp ";" ;
 DVal.   Decl ::= "val" TypedIdent "=" Exp ";" ;
-DFun.   Decl ::= "fun" Ident "(" [TypedIdent] ")" ":" Type "{" Body "}" ;
+DFun.   Decl ::= "fun" Ident "(" [TypedIdent] ")" ":" ParserType "{" Body "}" ;
 DAlg.   Decl ::= "alg" UIdent "=" [TypeAlgConstr] ";" ;
 
-TypedIdent.     TypedIdent  ::= Ident ":" Type ;
+TypedIdent.     TypedIdent  ::= Ident ":" ParserType ;
 separator TypedIdent "," ;
 
 separator TypeAlgConstr "|" ;
@@ -77,14 +77,14 @@ Unit.       Unit ::= "Unit" ;
 -- Types
 
 
-TArrow.         Type  ::= Type2 "->" Type ;
-TInt.           Type2 ::= "Int" ;
-TBool.          Type2 ::= "Bool" ;
-TAlg.           Type2 ::= UIdent ;
+PTArrow.         ParserType  ::= ParserType2 "->" ParserType ;
+PTInt.           ParserType2 ::= "Int" ;
+PTBool.          ParserType2 ::= "Bool" ;
+PTAlg.           ParserType2 ::= UIdent ;
 
 
-separator Type "," ;
-coercions Type 2 ;
+separator ParserType "," ;
+coercions ParserType 2 ;
 
 
 -- Algbraic types
@@ -94,4 +94,4 @@ TAV.        TypeAlgValue ::= UIdent ;
 TAVArgs.    TypeAlgValue ::= UIdent "(" [Exp] ")" ;
 
 TAC.        TypeAlgConstr ::= UIdent ;
-TACArgs.    TypeAlgConstr ::= UIdent "(" [Type] ")" ;
+TACArgs.    TypeAlgConstr ::= UIdent "(" [ParserType] ")" ;

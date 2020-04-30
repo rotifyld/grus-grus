@@ -74,10 +74,10 @@ ListDecl : {- empty -} { [] } | ListDecl Decl { flip (:) $1 $2 }
 Decl :: { Decl }
 Decl : 'put' Exp ';' { AbsGrusGrus.DPut $2 }
      | 'val' TypedIdent '=' Exp ';' { AbsGrusGrus.DVal $2 $4 }
-     | 'fun' Ident '(' ListTypedIdent ')' ':' Type '{' Body '}' { AbsGrusGrus.DFun $2 $4 $7 $9 }
+     | 'fun' Ident '(' ListTypedIdent ')' ':' ParserType '{' Body '}' { AbsGrusGrus.DFun $2 $4 $7 $9 }
      | 'alg' UIdent '=' ListTypeAlgConstr ';' { AbsGrusGrus.DAlg $2 $4 }
 TypedIdent :: { TypedIdent }
-TypedIdent : Ident ':' Type { AbsGrusGrus.TypedIdent $1 $3 }
+TypedIdent : Ident ':' ParserType { AbsGrusGrus.TypedIdent $1 $3 }
 ListTypedIdent :: { [TypedIdent] }
 ListTypedIdent : {- empty -} { [] }
                | TypedIdent { (:[]) $1 }
@@ -140,25 +140,26 @@ Boolean : 'True' { AbsGrusGrus.BTrue }
         | 'False' { AbsGrusGrus.BFalse }
 Unit :: { Unit }
 Unit : 'Unit' { AbsGrusGrus.Unit }
-Type :: { Type }
-Type : Type2 '->' Type { AbsGrusGrus.TArrow $1 $3 } | Type1 { $1 }
-Type2 :: { Type }
-Type2 : 'Int' { AbsGrusGrus.TInt }
-      | 'Bool' { AbsGrusGrus.TBool }
-      | UIdent { AbsGrusGrus.TAlg $1 }
-      | '(' Type ')' { $2 }
-ListType :: { [Type] }
-ListType : {- empty -} { [] }
-         | Type { (:[]) $1 }
-         | Type ',' ListType { (:) $1 $3 }
-Type1 :: { Type }
-Type1 : Type2 { $1 }
+ParserType :: { ParserType }
+ParserType : ParserType2 '->' ParserType { AbsGrusGrus.PTArrow $1 $3 }
+           | ParserType1 { $1 }
+ParserType2 :: { ParserType }
+ParserType2 : 'Int' { AbsGrusGrus.PTInt }
+            | 'Bool' { AbsGrusGrus.PTBool }
+            | UIdent { AbsGrusGrus.PTAlg $1 }
+            | '(' ParserType ')' { $2 }
+ListParserType :: { [ParserType] }
+ListParserType : {- empty -} { [] }
+               | ParserType { (:[]) $1 }
+               | ParserType ',' ListParserType { (:) $1 $3 }
+ParserType1 :: { ParserType }
+ParserType1 : ParserType2 { $1 }
 TypeAlgValue :: { TypeAlgValue }
 TypeAlgValue : UIdent { AbsGrusGrus.TAV $1 }
              | UIdent '(' ListExp ')' { AbsGrusGrus.TAVArgs $1 $3 }
 TypeAlgConstr :: { TypeAlgConstr }
 TypeAlgConstr : UIdent { AbsGrusGrus.TAC $1 }
-              | UIdent '(' ListType ')' { AbsGrusGrus.TACArgs $1 $3 }
+              | UIdent '(' ListParserType ')' { AbsGrusGrus.TACArgs $1 $3 }
 {
 
 returnM :: a -> Err a
