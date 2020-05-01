@@ -43,7 +43,7 @@ data Exp
     | EInt Integer
     | EBool Boolean
     | EVar Ident
-    | EAlg TypeAlgValue
+    | EAlg UIdent
   deriving (Eq, Ord, Show, Read)
 
 data Case = Case Exp Exp
@@ -57,9 +57,6 @@ data Unit = Unit
 
 data ParserType
     = PTArrow ParserType ParserType | PTInt | PTBool | PTAlg UIdent
-  deriving (Eq, Ord, Show, Read)
-
-data TypeAlgValue = TAV UIdent | TAVArgs UIdent [Exp]
   deriving (Eq, Ord, Show, Read)
 
 data TypeAlgConstr = TAC UIdent | TACArgs UIdent [ParserType]

@@ -105,9 +105,9 @@ buildMatch (VInt intV) (EInt intE)
     | intV == intE = return ()
 buildMatch (VBool True) (EBool BTrue) = return ()
 buildMatch (VBool False) (EBool BFalse) = return ()
-buildMatch (VAlg algvalV []) (EAlg (TAV (UIdent algvalE)))
+buildMatch (VAlg algvalV []) (EAlg (UIdent algvalE))
     | algvalV == algvalE = return ()
-buildMatch (VAlg algV vals) (EAlg (TAVArgs (UIdent algE) exps))
+buildMatch (VAlg algV vals) (ECall (EAlg (UIdent algE)) exps)
     | algV == algE = mapM_ (uncurry buildMatch) (zip vals exps)
 buildMatch _ _ = throwError ()
 
@@ -132,15 +132,19 @@ executeFunctionCall fun@(Function mIdent params body env) exps = do
             case mIdent of
                 Nothing -> env
                 Just funIdent -> modifyEnv funIdent (VFun fun) env
-    case compare (length vals) (length params) of
-        GT -> error "TMP too many arguments"
-        LT -> do
+    if length vals < length params
+        then do
             let env' = foldl (\e (p, v) -> modifyEnv p v e) env0 (zip params vals)
             let leftParams = drop (length vals) params
             return $ VFun (Function mIdent leftParams body env')
-        EQ -> do
+        else do
             let env' = foldl (\e (p, v) -> modifyEnv p v e) env0 (zip params vals)
             local (const env') $ execute body
+
+executeAlgebraicConstructor :: Name -> [Value] -> [Exp] -> ExecuteM Value
+executeAlgebraicConstructor name algVals exps = do
+    newVals <- mapM execute exps
+    return $ VAlg name (algVals ++ newVals)
 
 instance Executable Exp where
     execute (EIfte eb e1 e2) = do
@@ -169,8 +173,11 @@ instance Executable Exp where
             else executeBinaryOp e1 e2 div VInt
     execute (EMod e1 e2) = executeBinaryOp e1 e2 mod VInt
     execute (ECall exp exps) = do
-        vfun <- execute exp
-        executeFunctionCall (extract vfun) exps
+        value <- execute exp
+        case value of
+            (VFun fun) -> executeFunctionCall fun exps
+            (VAlg name vals) -> executeAlgebraicConstructor name vals exps
+            _ -> error "Should be found at Typechecking phase"
     execute (ELambda paramsTyped body) = do
         env <- ask
         let params = map getName paramsTyped
@@ -180,7 +187,4 @@ instance Executable Exp where
     execute (EBool BTrue) = return $ VBool True
     execute (EBool BFalse) = return $ VBool False
     execute (EVar (Ident name)) = findEnv name
-    execute (EAlg (TAV (UIdent algValue))) = return $ VAlg algValue []
-    execute (EAlg (TAVArgs (UIdent algValue) exps)) = do
-        vals <- mapM execute exps
-        return $ VAlg algValue vals
+    execute (EAlg (UIdent algValue)) = return $ VAlg algValue []

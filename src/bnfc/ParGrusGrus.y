@@ -115,7 +115,7 @@ Exp7 : Exp7 '*' Exp8 { AbsGrusGrus.EMult $1 $3 }
      | Exp8 { $1 }
 Exp8 :: { Exp }
 Exp8 : Exp '(' ListExp ')' { AbsGrusGrus.ECall $1 $3 }
-     | TypeAlgValue { AbsGrusGrus.EAlg $1 }
+     | UIdent { AbsGrusGrus.EAlg $1 }
      | Exp9 { $1 }
 Exp9 :: { Exp }
 Exp9 : '(' '\\' ListTypedIdent '~>' Body ')' { AbsGrusGrus.ELambda $3 $5 }
@@ -154,9 +154,6 @@ ListParserType : {- empty -} { [] }
                | ParserType ',' ListParserType { (:) $1 $3 }
 ParserType1 :: { ParserType }
 ParserType1 : ParserType2 { $1 }
-TypeAlgValue :: { TypeAlgValue }
-TypeAlgValue : UIdent { AbsGrusGrus.TAV $1 }
-             | UIdent '(' ListExp ')' { AbsGrusGrus.TAVArgs $1 $3 }
 TypeAlgConstr :: { TypeAlgConstr }
 TypeAlgConstr : UIdent { AbsGrusGrus.TAC $1 }
               | UIdent '(' ListParserType ')' { AbsGrusGrus.TACArgs $1 $3 }

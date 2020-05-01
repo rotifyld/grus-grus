@@ -54,7 +54,7 @@ ELambda.        Exp9 ::= "(" "\\" [TypedIdent] "~>" Body ")" ;
 EInt.           Exp9 ::= Integer ;
 EBool.          Exp9 ::= Boolean ;
 EVar.           Exp9 ::= Ident ;
-EAlg.           Exp8 ::= TypeAlgValue ;
+EAlg.           Exp8 ::= UIdent ;
 
 separator Exp "," ;
 coercions Exp 9 ;
@@ -89,9 +89,6 @@ coercions ParserType 2 ;
 
 -- Algbraic types
 
-
-TAV.        TypeAlgValue ::= UIdent ;
-TAVArgs.    TypeAlgValue ::= UIdent "(" [Exp] ")" ;
 
 TAC.        TypeAlgConstr ::= UIdent ;
 TACArgs.    TypeAlgConstr ::= UIdent "(" [ParserType] ")" ;

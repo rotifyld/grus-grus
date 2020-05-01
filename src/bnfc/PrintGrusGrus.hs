@@ -145,7 +145,7 @@ instance Print AbsGrusGrus.Exp where
     AbsGrusGrus.EInt n -> prPrec i 9 (concatD [prt 0 n])
     AbsGrusGrus.EBool boolean -> prPrec i 9 (concatD [prt 0 boolean])
     AbsGrusGrus.EVar id -> prPrec i 9 (concatD [prt 0 id])
-    AbsGrusGrus.EAlg typealgvalue -> prPrec i 8 (concatD [prt 0 typealgvalue])
+    AbsGrusGrus.EAlg uident -> prPrec i 8 (concatD [prt 0 uident])
   prtList _ [] = concatD []
   prtList _ [x] = concatD [prt 0 x]
   prtList _ (x:xs) = concatD [prt 0 x, doc (showString ","), prt 0 xs]
@@ -184,11 +184,6 @@ instance Print AbsGrusGrus.ParserType where
 
 instance Print [AbsGrusGrus.ParserType] where
   prt = prtList
-
-instance Print AbsGrusGrus.TypeAlgValue where
-  prt i e = case e of
-    AbsGrusGrus.TAV uident -> prPrec i 0 (concatD [prt 0 uident])
-    AbsGrusGrus.TAVArgs uident exps -> prPrec i 0 (concatD [prt 0 uident, doc (showString "("), prt 0 exps, doc (showString ")")])
 
 instance Print AbsGrusGrus.TypeAlgConstr where
   prt i e = case e of

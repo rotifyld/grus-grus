@@ -2,6 +2,7 @@ module IErr where
 
 import Control.Monad.Except (Except)
 
+import AbsGrusGrus
 import Utils
 
 data IError
@@ -17,6 +18,9 @@ data TCError
     | AlgebraicNotInScopeError Name
     | NonArrowTypeError Type
     | TooManyArgumentsError Int Int
+    | ConstructorArgumentsError Int Int
+    | EmptyCaseAlternativesListError
+    | CaseTypeMismatchError Type Exp
 
 data EError
     = DivideByZeroError
@@ -35,6 +39,17 @@ instance Show TCError where
         unlines ["Expression is not callable.", "  Expected an arrow type.", "  Actual:", "    " ++ show t]
     show (TooManyArgumentsError expected actual) =
         "Too many arguments. Expected " ++ show expected ++ ". Actual " ++ show actual
+    show (ConstructorArgumentsError expected actual) =
+        "Invalid number of arguments in constructor. Expected " ++ show expected ++ ". Actual " ++ show actual
+    show EmptyCaseAlternativesListError = "Empty case list of alternatives."
+    show (CaseTypeMismatchError t exp) =
+        unlines
+            [ "Coulnd't match types in case expression."
+            , "  Expected:"
+            , "    " ++ show t
+            , "  Actual: type arising from expression:"
+            , "    " ++ show exp
+            ]
 
 instance Show EError where
     show DivideByZeroError = "Divide by zero."
