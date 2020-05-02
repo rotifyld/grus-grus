@@ -82,22 +82,43 @@ typecheckManyWithGuard typeable = do
         [] -> throwError $ TypecheckError EmptyCaseAlternativesListError
         (t:ts) -> mapM_ (guardType t) ts >> return t
 
-guardCaseAlternative :: Type -> Exp -> TypecheckM ()
-guardCaseAlternative _ (EVar _) = return ()
-guardCaseAlternative TInt (EInt _) = return ()
-guardCaseAlternative TBool (EBool _) = return ()
-guardCaseAlternative algType@(TAlgebraic _) algVal@(EAlg _) = guardWithTypecheck algType algVal
-guardCaseAlternative algExpectedType@(TAlgebraic _) (ECall algExp@(EAlg (UIdent aname)) exps) = do
+-- Nomenclature:
+--  [[case expression]] ::= case [[match]] of { [[alternative]]; ... }
+--
+--  where [[alternative]] ::= [[left]] ~> [[right]]
+--
+typecheckCaseAlternative :: [(Exp, Type)] -> Exp -> TypecheckM Type
+typecheckCaseAlternative [] right = typecheck right
+typecheckCaseAlternative ((EVar (Ident vname), expectedType):es) right =
+    local (addVariableEnv vname expectedType) $ typecheckCaseAlternative es right
+typecheckCaseAlternative ((EInt _, TInt):es) right = typecheckCaseAlternative es right
+typecheckCaseAlternative ((EBool _, TBool):es) right = typecheckCaseAlternative es right
+typecheckCaseAlternative ((algVal@(EAlg _), algType@(TAlgebraic _)):es) right = do
+    guardWithTypecheck algType algVal
+    typecheckCaseAlternative es right
+typecheckCaseAlternative ((ECall algVal@(EAlg (UIdent algValName)) callExps, algExpectedType@(TAlgebraic _)):es) right = do
     env <- ask
-    case lookupVariableEnv aname env of
-        Nothing -> throwError $ TypecheckError $ AlgebraicNotInScopeError aname
-        (Just (TArrow shape rightActualType)) -> do
-            guardType algExpectedType rightActualType
-            when (length shape /= length exps) $
-                throwError $ TypecheckError $ ConstructorArgumentsError (length shape) (length exps)
-            mapM_ (uncurry guardCaseAlternative) (zip shape exps)
+    case lookupVariableEnv algValName env of
+        Nothing -> throwError $ TypecheckError $ AlgebraicNotInScopeError algValName
+        (Just (TArrow constructorShape algActualType)) -> do
+            guardType algExpectedType algActualType
+            let expectedArgsNum = length constructorShape
+            let actualArgsNum = length callExps
+            when (expectedArgsNum /= actualArgsNum) $
+                throwError $ TypecheckError $ ConstructorArgumentsError expectedArgsNum actualArgsNum
+            typecheckCaseAlternative (zip callExps constructorShape ++ es) right
         (Just t) -> throwError $ TypecheckError $ UnexpectedTypeError algExpectedType t
-guardCaseAlternative t exp = throwError $ TypecheckError $ CaseTypeMismatchError t exp
+typecheckCaseAlternative ((e, t):es) _ = throwError $ TypecheckError $ CaseTypeMismatchError t e
+
+-- returns type of right of (any) alternative
+typecheckCaseExpression :: [Case] -> Type -> TypecheckM Type
+typecheckCaseExpression [] _ = throwError $ TypecheckError EmptyCaseAlternativesListError
+typecheckCaseExpression [Case left right] matchType = typecheckCaseAlternative [(left, matchType)] right
+typecheckCaseExpression (Case left right:cs) matchType = do
+    nextAlternativesType <- typecheckCaseExpression cs matchType
+    thisAlternativeType <- typecheckCaseAlternative [(left, matchType)] right
+    guardType thisAlternativeType nextAlternativesType
+    return thisAlternativeType
 
 instance Typecheckable Exp where
     typecheck (EIfte condition leftExp rightExp) = do
@@ -105,12 +126,9 @@ instance Typecheckable Exp where
         leftType <- typecheck leftExp
         guardWithTypecheck leftType rightExp
         return leftType
-    typecheck (ECase matchExp cases) = do
-        matchType <- typecheck matchExp
-        when (null cases) $ throwError $ TypecheckError EmptyCaseAlternativesListError
-        let (leftExps, rightExps) = unzip $ map (\(Case leftExp rightExp) -> (leftExp, rightExp)) cases
-        mapM_ (guardCaseAlternative matchType) leftExps
-        typecheckManyWithGuard rightExps
+    typecheck (ECase match alternatives) = do
+        matchType <- typecheck match
+        typecheckCaseExpression alternatives matchType
     typecheck (EInt _) = return TInt
     typecheck (EBool _) = return TBool
     typecheck (EVar (Ident vname)) = do
