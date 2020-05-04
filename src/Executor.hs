@@ -2,9 +2,11 @@ module Executor
     ( ExecuteM
     , execute
     , runExecuteM
+    , runExecuteM'
     , Value
     , Function
     , Env
+    , Branch(..)
     ) where
 
 import Control.Monad.Except
@@ -49,11 +51,16 @@ findEnv ident = do
         Just val -> return val
         Nothing -> throwError $ ExecutionError $ VariableNotInScopeExecutionError
 
+data Branch =
+    Branch Exp Env
 
-type ExecuteM = ReaderT Env (ExceptT IError IO)
+type ExecuteM = ReaderT Env (ExceptT IError (StateT [Branch] IO))
 
-runExecuteM :: ExecuteM a -> IO (Either IError a)
-runExecuteM executable = runExceptT (runReaderT executable initEnv)
+runExecuteM :: ExecuteM a -> IO (Either IError a, [Branch])
+runExecuteM = runExecuteM' initEnv []
+
+runExecuteM' :: Env -> [Branch] -> ExecuteM a -> IO (Either IError a, [Branch])
+runExecuteM' env branches executable = runStateT (runExceptT (runReaderT executable env)) branches
 
 class Executable a where
     execute :: a -> ExecuteM Value
@@ -91,13 +98,16 @@ executeCaseAlternative ((ECall (EAlg (UIdent algE)) exps, VAlg algV vals):ps) ri
     | algE == algE = executeCaseAlternative (zip exps vals ++ ps) right
 executeCaseAlternative _ _ = return Nothing
 
-executeCaseExpression :: [Case] -> Value -> ExecuteM Value
-executeCaseExpression [] _ = throwError $ ExecutionError NoPatternMatchedError
-executeCaseExpression (Case left right:cs) matchVal = do
+executeCaseExpression :: Exp -> [Case] -> Value -> ExecuteM Value
+executeCaseExpression _ [] _ = throwError $ ExecutionError NoPatternMatchedError
+executeCaseExpression exp (Case left right:cs) matchVal = do
     maybeVal <- executeCaseAlternative [(left, matchVal)] right
     case maybeVal of
-        Nothing -> executeCaseExpression cs matchVal
-        Just val -> return val
+        Nothing -> executeCaseExpression exp cs matchVal
+        Just val -> do
+            env <- ask
+            modify (Branch (ECase exp cs) env :)
+            return val
 
 executeOp :: (Extractable a, Extractable b) => Exp -> Exp -> (a -> b -> c) -> ExecuteM c
 executeOp e1 e2 op = do
@@ -134,7 +144,7 @@ instance Executable Exp where
             else execute e2
     execute (ECase exp cases) = do
         val <- execute exp
-        executeCaseExpression cases val
+        executeCaseExpression exp cases val
     execute (EOr e1 e2) = liftM VBool $ executeOp e1 e2 (||)
     execute (EAnd e1 e2) = liftM VBool $ executeOp e1 e2 (&&)
     execute (EEq e1 e2) = liftM VBool $ executeOp e1 e2 ((==) :: Integer -> Integer -> Bool)
