@@ -74,44 +74,30 @@ instance Executable Body where
         local (addEnv fident (VFun fun)) $ execute (Body ds bodyExp)
     execute (Body (DAlg algType algValues:ds) bodyExp) = execute (Body ds bodyExp)
 
--- todo matchM
-buildMatch :: Value -> Exp -> StateT Env Maybe ()
-buildMatch val (EVar (Ident var)) = do
-    modify $ addEnv var val
-    return ()
-buildMatch (VInt intV) (EInt intE)
-    | intV == intE = return ()
-buildMatch (VBool True) (EBool BTrue) = return ()
-buildMatch (VBool False) (EBool BFalse) = return ()
-buildMatch (VAlg algvalV []) (EAlg (UIdent algvalE))
-    | algvalV == algvalE = return ()
-buildMatch (VAlg algV vals) (ECall (EAlg (UIdent algE)) exps)
-    | algV == algE = mapM_ (uncurry buildMatch) (zip vals exps)
-buildMatch _ _ = throwError ()
+typecheckCaseAlternative :: [(Exp, Value)] -> Exp -> ExecuteM (Maybe Value)
+typecheckCaseAlternative [] right = do
+    val <- execute right
+    return $ Just val
+typecheckCaseAlternative ((EVar (Ident name), value):ps) right =
+    local (addEnv name value) $ typecheckCaseAlternative ps right
+typecheckCaseAlternative ((EInt intE, VInt intV):ps) right
+    | intE == intV = typecheckCaseAlternative ps right
+typecheckCaseAlternative ((EBool BTrue, VBool True):ps) right = typecheckCaseAlternative ps right
+typecheckCaseAlternative ((EBool BFalse, VBool False):ps) right = typecheckCaseAlternative ps right
+typecheckCaseAlternative ((EAlg (UIdent algValE), VAlg algValV []):ps) right
+    | algValE == algValV = typecheckCaseAlternative ps right
+typecheckCaseAlternative ((ECall (EAlg (UIdent algE)) exps, VAlg algV vals):ps) right
+    | algE == algE = typecheckCaseAlternative (zip exps vals ++ ps) right
+typecheckCaseAlternative _ _ = return Nothing
 
--- TODO branch exectuion
-executeCase :: Value -> [Case] -> ExecuteM Value
-executeCase val (Case matching body:cases) =
-    case runStateT (buildMatch val matching) emptyEnv of
-        Nothing -> executeCase val cases
-        Just ((), env) -> local (unionEnv env) $ execute body
-executeCase val [] = throwError (ExecutionError NoPatternMatchedError)
+executeCaseExpression :: [Case] -> Value -> ExecuteM Value
+executeCaseExpression [] _ = throwError $ ExecutionError NoPatternMatchedError
+executeCaseExpression (Case left right:cs) matchVal = do
+    maybeVal <- typecheckCaseAlternative [(left, matchVal)] right
+    case maybeVal of
+        Nothing -> executeCaseExpression cs matchVal
+        Just val -> return val
 
--- todo wip
---typecheckCaseAlternative :: [(Exp, Value)] -> Exp -> Maybe (ExecuteM Value)
---typecheckCaseAlternative [] right = Just $ execute right
---typecheckCaseAlternative ((EInt intE, VInt intV):ps) right
---    | intE == intV = typecheckCaseAlternative ps right
---typecheckCaseAlternative ((EBool BTrue, VBool True):ps) right = typecheckCaseAlternative ps right
---typecheckCaseAlternative ((EBool BFalse, VBool False):ps) right = typecheckCaseAlternative ps right
---typecheckCaseAlternative _ _ = Nothing
---
---executeCaseExpression :: [Case] -> Value -> ExecuteM Value
---executeCaseExpression [] _ = throwError $ ExecutionError NoPatternMatchedError
---executeCaseExpression (Case left right:cs) matchVal =
---    case typecheckCaseAlternative [(left, matchVal)] right of
---        Nothing -> executeCaseExpression cs matchVal
---        Just monadValue -> monadValue
 executeBinaryOp :: (RuntimeExtract a) => Exp -> Exp -> (a -> a -> b) -> (b -> Value) -> ExecuteM Value
 executeBinaryOp e1 e2 op value = do
     v1 <- execute e1
@@ -147,7 +133,7 @@ instance Executable Exp where
             else execute e2
     execute (ECase exp cases) = do
         val <- execute exp
-        executeCase val cases
+        executeCaseExpression cases val
     execute (EOr e1 e2) = executeBinaryOp e1 e2 (||) VBool
     execute (EAnd e1 e2) = executeBinaryOp e1 e2 (&&) VBool
     execute (EEq e1 e2) = executeBinaryOp e1 e2 ((==) :: Integer -> Integer -> Bool) VBool
