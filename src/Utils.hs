@@ -1,6 +1,5 @@
 module Utils
-    ( Type(..)
-    , Name
+    ( Name
     , getName
     , getPType
     , getPTypes
@@ -39,16 +38,3 @@ instance WithType TypeAlgConstr where
     getPType _ = error ""
     getPTypes (TAC _) = []
     getPTypes (TACArgs _ types) = types
-
-data Type
-    = TInt
-    | TBool
-    | TArrow [Type] Type
-    | TAlgebraic Name
-    deriving (Eq)
-
-instance Show Type where
-    show TInt = "Int"
-    show TBool = "Bool"
-    show (TAlgebraic name) = name
-    show (TArrow leftTypes rightType) = "(" ++ intercalate ", " (map show leftTypes) ++ ") -> " ++ show rightType

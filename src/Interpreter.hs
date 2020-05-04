@@ -20,18 +20,22 @@ interpret = do
     case runParser programStr of
         (Bad str) -> hPutStrLn stderr str
         (Ok body) -> do
-            eitherValue <- runInterpreter body
-            case eitherValue of
+            eitherValueType <- runInterpreter body
+            case eitherValueType of
                 (Left err) -> hPrint stderr err
-                (Right val) -> print val
+                (Right (val, t)) -> do
+                    print val
+                    putStrLn $ ":: " ++ show t
 
 runParser :: String -> Err Body
 runParser s = pBody (myLexer s)
 
-runInterpreter :: Body -> IO (Either IError Value)
+runInterpreter :: Body -> IO (Either IError (Value, Type))
 runInterpreter body =
     case runTypecheckM (typecheck body) of
         (Left err) -> return $ Left err
         (Right t) -> do
-            putStrLn $ ":: " ++ show t
-            runExecuteM (execute body)
+            eitherValue <- runExecuteM (execute body)
+            case eitherValue of
+                (Left err) -> return $ Left err
+                (Right val) -> return $ Right (val, t)

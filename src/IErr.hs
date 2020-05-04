@@ -3,6 +3,7 @@ module IErr where
 import Control.Monad.Except (Except)
 
 import AbsGrusGrus
+import TypecheckerUtils (Type)
 import Utils
 
 data IError
@@ -24,7 +25,7 @@ data TCError
 
 data EError
     = DivideByZeroError
-    | NoPatternMatcherErrorTMP
+    | NoPatternMatchedError
 
 instance Show IError where
     show (TypecheckError err) = "Type check error: " ++ show err
@@ -53,4 +54,4 @@ instance Show TCError where
 
 instance Show EError where
     show DivideByZeroError = "Divide by zero."
-    show NoPatternMatcherErrorTMP = "TMP no pattern matched"
+    show NoPatternMatchedError = "No pattern matched."

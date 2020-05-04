@@ -3,6 +3,8 @@ module Executor
     , execute
     , runExecuteM
     , Value
+    , Function
+    , Env
     ) where
 
 import Control.Monad.Except
@@ -12,26 +14,10 @@ import Data.List (intercalate)
 import qualified Data.Map as M
 
 import AbsGrusGrus
+import ExecutorUtils
 import IErr
+import StandardLibrary (initialExecuteEnv)
 import Utils
-
-data Value
-    = VInt Integer
-    | VBool Bool
-    | VFun Function
-    | VAlg String [Value]
-
-instance Show Value where
-    show (VInt int) = show int
-    show (VBool bool) = show bool
-    show (VFun (Function (Just name) _ _ _)) = "Function \"" ++ name ++ "\""
-    show (VFun (Function Nothing _ _ _)) = "Anonymous function."
-    show (VAlg name []) = name
-    show (VAlg name vals) = name ++ "(" ++ (intercalate ", " . map show) vals ++ ")"
-
-data Function =
-    Function (Maybe Name) [Name] Body Env
-    deriving (Show)
 
 class RuntimeExtract a where
     extract :: Value -> a
@@ -50,10 +36,8 @@ instance RuntimeExtract Function where
 
 type Loc = Int
 
-type Env = M.Map Name Value
-
-emptyEnv :: Env
-emptyEnv = M.empty
+initEnv :: Env
+initEnv = initialExecuteEnv
 
 lookupEnv :: Name -> ExecuteM (Maybe Value)
 lookupEnv ident = asks (M.lookup ident)
@@ -65,16 +49,10 @@ findEnv ident = do
         Just val -> return val
         Nothing -> error "TMP variable not in env"
 
-modifyEnv :: Name -> Value -> Env -> Env
-modifyEnv = M.insert
-
-unionEnv :: Env -> Env -> Env
-unionEnv = M.union
-
 type ExecuteM = ReaderT Env (ExceptT IError IO)
 
 runExecuteM :: ExecuteM a -> IO (Either IError a)
-runExecuteM executable = runExceptT (runReaderT executable emptyEnv)
+runExecuteM executable = runExceptT (runReaderT executable initEnv)
 
 class Executable a where
     execute :: a -> ExecuteM Value
@@ -88,18 +66,18 @@ instance Executable Body where
     execute (Body (DVal typedIdent dExp:ds) bodyExp) = do
         v <- execute dExp
         let ident = getName typedIdent
-        local (modifyEnv ident v) $ execute (Body ds bodyExp)
+        local (addEnv ident v) $ execute (Body ds bodyExp)
     execute (Body (DFun (Ident fident) paramsTyped _ fbody:ds) bodyExp) = do
         env <- ask
         let params = map getName paramsTyped
         let fun = Function (Just fident) params fbody env
-        local (modifyEnv fident (VFun fun)) $ execute (Body ds bodyExp)
+        local (addEnv fident (VFun fun)) $ execute (Body ds bodyExp)
     execute (Body (DAlg algType algValues:ds) bodyExp) = execute (Body ds bodyExp)
 
 -- todo matchM
 buildMatch :: Value -> Exp -> StateT Env Maybe ()
 buildMatch val (EVar (Ident var)) = do
-    modify $ modifyEnv var val
+    modify $ addEnv var val
     return ()
 buildMatch (VInt intV) (EInt intE)
     | intV == intE = return ()
@@ -117,8 +95,23 @@ executeCase val (Case matching body:cases) =
     case runStateT (buildMatch val matching) emptyEnv of
         Nothing -> executeCase val cases
         Just ((), env) -> local (unionEnv env) $ execute body
-executeCase val [] = throwError (ExecutionError NoPatternMatcherErrorTMP)
+executeCase val [] = throwError (ExecutionError NoPatternMatchedError)
 
+-- todo wip
+--typecheckCaseAlternative :: [(Exp, Value)] -> Exp -> Maybe (ExecuteM Value)
+--typecheckCaseAlternative [] right = Just $ execute right
+--typecheckCaseAlternative ((EInt intE, VInt intV):ps) right
+--    | intE == intV = typecheckCaseAlternative ps right
+--typecheckCaseAlternative ((EBool BTrue, VBool True):ps) right = typecheckCaseAlternative ps right
+--typecheckCaseAlternative ((EBool BFalse, VBool False):ps) right = typecheckCaseAlternative ps right
+--typecheckCaseAlternative _ _ = Nothing
+--
+--executeCaseExpression :: [Case] -> Value -> ExecuteM Value
+--executeCaseExpression [] _ = throwError $ ExecutionError NoPatternMatchedError
+--executeCaseExpression (Case left right:cs) matchVal =
+--    case typecheckCaseAlternative [(left, matchVal)] right of
+--        Nothing -> executeCaseExpression cs matchVal
+--        Just monadValue -> monadValue
 executeBinaryOp :: (RuntimeExtract a) => Exp -> Exp -> (a -> a -> b) -> (b -> Value) -> ExecuteM Value
 executeBinaryOp e1 e2 op value = do
     v1 <- execute e1
@@ -131,14 +124,14 @@ executeFunctionCall fun@(Function mIdent params body env) exps = do
     let env0 =
             case mIdent of
                 Nothing -> env
-                Just funIdent -> modifyEnv funIdent (VFun fun) env
+                Just funIdent -> addEnv funIdent (VFun fun) env
     if length vals < length params
         then do
-            let env' = foldl (\e (p, v) -> modifyEnv p v e) env0 (zip params vals)
+            let env' = foldl (\e (p, v) -> addEnv p v e) env0 (zip params vals)
             let leftParams = drop (length vals) params
             return $ VFun (Function mIdent leftParams body env')
         else do
-            let env' = foldl (\e (p, v) -> modifyEnv p v e) env0 (zip params vals)
+            let env' = foldl (\e (p, v) -> addEnv p v e) env0 (zip params vals)
             local (const env') $ execute body
 
 executeAlgebraicConstructor :: Name -> [Value] -> [Exp] -> ExecuteM Value
@@ -177,7 +170,7 @@ instance Executable Exp where
         case value of
             (VFun fun) -> executeFunctionCall fun exps
             (VAlg name vals) -> executeAlgebraicConstructor name vals exps
-            _ -> error "Should be found at Typechecking phase"
+            _ -> error "TMP Should be found at Typechecking phase"
     execute (ELambda paramsTyped body) = do
         env <- ask
         let params = map getName paramsTyped
