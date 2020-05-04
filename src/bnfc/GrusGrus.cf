@@ -49,12 +49,12 @@ ESub.           Exp6  ::= Exp6 "-" Exp7 ;
 EMult.          Exp7  ::= Exp7 "*" Exp8 ;
 EDiv.           Exp7  ::= Exp7 "/" Exp8 ;
 EMod.           Exp7  ::= Exp7 "%" Exp8 ;
-ECall.          Exp8  ::= Exp "(" [Exp] ")" ;
+ECall.          Exp8  ::= Exp8 "(" [Exp] ")" ;
 ELambda.        Exp9 ::= "(" "\\" [TypedIdent] "~>" Body ")" ;
 EInt.           Exp9 ::= Integer ;
 EBool.          Exp9 ::= Boolean ;
 EVar.           Exp9 ::= Ident ;
-EAlg.           Exp8 ::= UIdent ;
+EAlg.           Exp9 ::= UIdent ;
 
 separator Exp "," ;
 coercions Exp 9 ;

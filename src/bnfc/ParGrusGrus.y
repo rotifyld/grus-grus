@@ -114,14 +114,14 @@ Exp7 : Exp7 '*' Exp8 { AbsGrusGrus.EMult $1 $3 }
      | Exp7 '%' Exp8 { AbsGrusGrus.EMod $1 $3 }
      | Exp8 { $1 }
 Exp8 :: { Exp }
-Exp8 : Exp '(' ListExp ')' { AbsGrusGrus.ECall $1 $3 }
-     | UIdent { AbsGrusGrus.EAlg $1 }
+Exp8 : Exp8 '(' ListExp ')' { AbsGrusGrus.ECall $1 $3 }
      | Exp9 { $1 }
 Exp9 :: { Exp }
 Exp9 : '(' '\\' ListTypedIdent '~>' Body ')' { AbsGrusGrus.ELambda $3 $5 }
      | Integer { AbsGrusGrus.EInt $1 }
      | Boolean { AbsGrusGrus.EBool $1 }
      | Ident { AbsGrusGrus.EVar $1 }
+     | UIdent { AbsGrusGrus.EAlg $1 }
      | '(' Exp ')' { $2 }
 ListExp :: { [Exp] }
 ListExp : {- empty -} { [] }

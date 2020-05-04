@@ -140,12 +140,12 @@ instance Print AbsGrusGrus.Exp where
     AbsGrusGrus.EMult exp1 exp2 -> prPrec i 7 (concatD [prt 7 exp1, doc (showString "*"), prt 8 exp2])
     AbsGrusGrus.EDiv exp1 exp2 -> prPrec i 7 (concatD [prt 7 exp1, doc (showString "/"), prt 8 exp2])
     AbsGrusGrus.EMod exp1 exp2 -> prPrec i 7 (concatD [prt 7 exp1, doc (showString "%"), prt 8 exp2])
-    AbsGrusGrus.ECall exp exps -> prPrec i 8 (concatD [prt 0 exp, doc (showString "("), prt 0 exps, doc (showString ")")])
+    AbsGrusGrus.ECall exp exps -> prPrec i 8 (concatD [prt 8 exp, doc (showString "("), prt 0 exps, doc (showString ")")])
     AbsGrusGrus.ELambda typedidents body -> prPrec i 9 (concatD [doc (showString "("), doc (showString "\\"), prt 0 typedidents, doc (showString "~>"), prt 0 body, doc (showString ")")])
     AbsGrusGrus.EInt n -> prPrec i 9 (concatD [prt 0 n])
     AbsGrusGrus.EBool boolean -> prPrec i 9 (concatD [prt 0 boolean])
     AbsGrusGrus.EVar id -> prPrec i 9 (concatD [prt 0 id])
-    AbsGrusGrus.EAlg uident -> prPrec i 8 (concatD [prt 0 uident])
+    AbsGrusGrus.EAlg uident -> prPrec i 9 (concatD [prt 0 uident])
   prtList _ [] = concatD []
   prtList _ [x] = concatD [prt 0 x]
   prtList _ (x:xs) = concatD [prt 0 x, doc (showString ","), prt 0 xs]
