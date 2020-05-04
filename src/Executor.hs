@@ -19,20 +19,20 @@ import IErr
 import StandardLibrary (initialExecuteEnv)
 import Utils
 
-class RuntimeExtract a where
-    extract :: Value -> a
+class Extractable a where
+    extract :: Value -> ExecuteM a
 
-instance RuntimeExtract Integer where
-    extract (VInt i) = i
-    extract _ = error "TMP runtime extract int"
+instance Extractable Integer where
+    extract (VInt i) = return i
+    extract _ = throwError $ ExecutionError $ UnexpectedTypeExecutionError
 
-instance RuntimeExtract Bool where
-    extract (VBool b) = b
-    extract _ = error "TMP runtime extract bool"
+instance Extractable Bool where
+    extract (VBool b) = return b
+    extract _ = throwError $ ExecutionError $ UnexpectedTypeExecutionError
 
-instance RuntimeExtract Function where
-    extract (VFun fun) = fun
-    extract _ = error "TMP runtime extract fun"
+instance Extractable Function where
+    extract (VFun fun) = return fun
+    extract _ = throwError $ ExecutionError $ UnexpectedTypeExecutionError
 
 type Loc = Int
 
@@ -47,7 +47,8 @@ findEnv ident = do
     mVal <- lookupEnv ident
     case mVal of
         Just val -> return val
-        Nothing -> error "TMP variable not in env"
+        Nothing -> throwError $ ExecutionError $ VariableNotInScopeExecutionError
+
 
 type ExecuteM = ReaderT Env (ExceptT IError IO)
 
@@ -74,35 +75,35 @@ instance Executable Body where
         local (addEnv fident (VFun fun)) $ execute (Body ds bodyExp)
     execute (Body (DAlg algType algValues:ds) bodyExp) = execute (Body ds bodyExp)
 
-typecheckCaseAlternative :: [(Exp, Value)] -> Exp -> ExecuteM (Maybe Value)
-typecheckCaseAlternative [] right = do
+executeCaseAlternative :: [(Exp, Value)] -> Exp -> ExecuteM (Maybe Value)
+executeCaseAlternative [] right = do
     val <- execute right
     return $ Just val
-typecheckCaseAlternative ((EVar (Ident name), value):ps) right =
-    local (addEnv name value) $ typecheckCaseAlternative ps right
-typecheckCaseAlternative ((EInt intE, VInt intV):ps) right
-    | intE == intV = typecheckCaseAlternative ps right
-typecheckCaseAlternative ((EBool BTrue, VBool True):ps) right = typecheckCaseAlternative ps right
-typecheckCaseAlternative ((EBool BFalse, VBool False):ps) right = typecheckCaseAlternative ps right
-typecheckCaseAlternative ((EAlg (UIdent algValE), VAlg algValV []):ps) right
-    | algValE == algValV = typecheckCaseAlternative ps right
-typecheckCaseAlternative ((ECall (EAlg (UIdent algE)) exps, VAlg algV vals):ps) right
-    | algE == algE = typecheckCaseAlternative (zip exps vals ++ ps) right
-typecheckCaseAlternative _ _ = return Nothing
+executeCaseAlternative ((EVar (Ident name), value):ps) right =
+    local (addEnv name value) $ executeCaseAlternative ps right
+executeCaseAlternative ((EInt intE, VInt intV):ps) right
+    | intE == intV = executeCaseAlternative ps right
+executeCaseAlternative ((EBool BTrue, VBool True):ps) right = executeCaseAlternative ps right
+executeCaseAlternative ((EBool BFalse, VBool False):ps) right = executeCaseAlternative ps right
+executeCaseAlternative ((EAlg (UIdent algValE), VAlg algValV []):ps) right
+    | algValE == algValV = executeCaseAlternative ps right
+executeCaseAlternative ((ECall (EAlg (UIdent algE)) exps, VAlg algV vals):ps) right
+    | algE == algE = executeCaseAlternative (zip exps vals ++ ps) right
+executeCaseAlternative _ _ = return Nothing
 
 executeCaseExpression :: [Case] -> Value -> ExecuteM Value
 executeCaseExpression [] _ = throwError $ ExecutionError NoPatternMatchedError
 executeCaseExpression (Case left right:cs) matchVal = do
-    maybeVal <- typecheckCaseAlternative [(left, matchVal)] right
+    maybeVal <- executeCaseAlternative [(left, matchVal)] right
     case maybeVal of
         Nothing -> executeCaseExpression cs matchVal
         Just val -> return val
 
-executeBinaryOp :: (RuntimeExtract a) => Exp -> Exp -> (a -> a -> b) -> (b -> Value) -> ExecuteM Value
-executeBinaryOp e1 e2 op value = do
-    v1 <- execute e1
-    v2 <- execute e2
-    return $ value $ extract v1 `op` extract v2
+executeOp :: (Extractable a, Extractable b) => Exp -> Exp -> (a -> b -> c) -> ExecuteM c
+executeOp e1 e2 op = do
+    v1 <- extract =<< execute e1
+    v2 <- extract =<< execute e2
+    return $ v1 `op` v2
 
 executeFunctionCall :: Function -> [Exp] -> ExecuteM Value
 executeFunctionCall fun@(Function mIdent params body env) exps = do
@@ -127,36 +128,36 @@ executeAlgebraicConstructor name algVals exps = do
 
 instance Executable Exp where
     execute (EIfte eb e1 e2) = do
-        vb <- execute eb
-        if extract vb
+        vb <- extract =<< execute eb
+        if vb
             then execute e1
             else execute e2
     execute (ECase exp cases) = do
         val <- execute exp
         executeCaseExpression cases val
-    execute (EOr e1 e2) = executeBinaryOp e1 e2 (||) VBool
-    execute (EAnd e1 e2) = executeBinaryOp e1 e2 (&&) VBool
-    execute (EEq e1 e2) = executeBinaryOp e1 e2 ((==) :: Integer -> Integer -> Bool) VBool
-    execute (ENeq e1 e2) = executeBinaryOp e1 e2 ((/=) :: Integer -> Integer -> Bool) VBool
-    execute (ELt e1 e2) = executeBinaryOp e1 e2 ((<) :: Integer -> Integer -> Bool) VBool
-    execute (EGt e1 e2) = executeBinaryOp e1 e2 ((>) :: Integer -> Integer -> Bool) VBool
-    execute (ELe e1 e2) = executeBinaryOp e1 e2 ((<=) :: Integer -> Integer -> Bool) VBool
-    execute (EGe e1 e2) = executeBinaryOp e1 e2 ((>=) :: Integer -> Integer -> Bool) VBool
-    execute (EAdd e1 e2) = executeBinaryOp e1 e2 (+) VInt
-    execute (ESub e1 e2) = executeBinaryOp e1 e2 (-) VInt
-    execute (EMult e1 e2) = executeBinaryOp e1 e2 (*) VInt
+    execute (EOr e1 e2) = liftM VBool $ executeOp e1 e2 (||)
+    execute (EAnd e1 e2) = liftM VBool $ executeOp e1 e2 (&&)
+    execute (EEq e1 e2) = liftM VBool $ executeOp e1 e2 ((==) :: Integer -> Integer -> Bool)
+    execute (ENeq e1 e2) = liftM VBool $ executeOp e1 e2 ((/=) :: Integer -> Integer -> Bool)
+    execute (ELt e1 e2) = liftM VBool $ executeOp e1 e2 ((<) :: Integer -> Integer -> Bool)
+    execute (EGt e1 e2) = liftM VBool $ executeOp e1 e2 ((>) :: Integer -> Integer -> Bool)
+    execute (ELe e1 e2) = liftM VBool $ executeOp e1 e2 ((<=) :: Integer -> Integer -> Bool)
+    execute (EGe e1 e2) = liftM VBool $ executeOp e1 e2 ((>=) :: Integer -> Integer -> Bool)
+    execute (EAdd e1 e2) = liftM VInt $ executeOp e1 e2 (+)
+    execute (ESub e1 e2) = liftM VInt $ executeOp e1 e2 (-)
+    execute (EMult e1 e2) = liftM VInt $ executeOp e1 e2 (*)
     execute (EDiv e1 e2) = do
-        v2 <- execute e2
-        if (extract v2 :: Integer) == 0
-            then throwError (ExecutionError DivideByZeroError)
-            else executeBinaryOp e1 e2 div VInt
-    execute (EMod e1 e2) = executeBinaryOp e1 e2 mod VInt
+        divisor <- extract =<< execute e2
+        when (divisor == 0) $ throwError $ ExecutionError $ DivideByZeroError
+        dividend <- extract =<< execute e1
+        return $ VInt $ dividend `div` divisor
+    execute (EMod e1 e2) = liftM VInt $ executeOp e1 e2 mod
     execute (ECall exp exps) = do
         value <- execute exp
         case value of
             (VFun fun) -> executeFunctionCall fun exps
             (VAlg name vals) -> executeAlgebraicConstructor name vals exps
-            _ -> error "TMP Should be found at Typechecking phase"
+            _ -> throwError $ ExecutionError $ UnexpectedTypeExecutionError
     execute (ELambda paramsTyped body) = do
         env <- ask
         let params = map getName paramsTyped

@@ -26,6 +26,8 @@ data TCError
 data EError
     = DivideByZeroError
     | NoPatternMatchedError
+    | UnexpectedTypeExecutionError
+    | VariableNotInScopeExecutionError
 
 instance Show IError where
     show (TypecheckError err) = "Type check error: " ++ show err
@@ -55,3 +57,4 @@ instance Show TCError where
 instance Show EError where
     show DivideByZeroError = "Divide by zero."
     show NoPatternMatchedError = "No pattern matched."
+    show UnexpectedTypeExecutionError = "Invalid type error."

@@ -11,6 +11,7 @@ data Value
     | VBool Bool
     | VFun Function
     | VAlg String [Value]
+    deriving (Eq)
 
 instance Show Value where
     show (VInt int) = show int
@@ -22,7 +23,7 @@ instance Show Value where
 
 data Function =
     Function (Maybe Name) [Name] Body Env
-    deriving (Show)
+    deriving (Show, Eq)
 
 type Env = M.Map Name Value
 
