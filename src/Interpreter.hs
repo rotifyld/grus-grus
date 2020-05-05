@@ -2,16 +2,17 @@ module Interpreter
     ( interpret
     ) where
 
-import Executor
-import IErr
-import Typechecker
+import Control.Monad.Except (Except)
+import Data.Either (partitionEithers)
+import System.IO (hPrint, hPutStrLn, stderr)
 
 import AbsGrusGrus (Body)
-import Control.Monad.Except (Except)
 import ErrM
+import Executor
+import IErr
 import LexGrusGrus
 import ParGrusGrus
-import System.IO (hPrint, hPutStrLn, stderr)
+import Typechecker
 
 interpret :: IO ()
 interpret = do
@@ -23,19 +24,19 @@ interpret = do
             eitherValueType <- runInterpreter body
             case eitherValueType of
                 (Left err) -> hPrint stderr err
-                (Right (val, t)) -> do
-                    print val
+                (Right (t, vals)) -> do
                     putStrLn $ ":: " ++ show t
+                    mapM_ print vals
 
 runParser :: String -> Err Body
 runParser s = pBody (myLexer s)
 
-runInterpreter :: Body -> IO (Either IError (Value, Type))
+runInterpreter :: Body -> IO (Either IError (Type, [Value]))
 runInterpreter body =
     case runTypecheckM (typecheck body) of
         (Left err) -> return $ Left err
         (Right t) -> do
-            eitherValue <- runExecuteM (execute body)
-            case eitherValue of
+            e <- runExecuteM (execute body)
+            case e of
                 (Left err) -> return $ Left err
-                (Right val) -> return $ Right (val, t)
+                (Right vals) -> return $ Right (t, vals)

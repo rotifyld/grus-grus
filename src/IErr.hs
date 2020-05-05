@@ -1,10 +1,11 @@
 module IErr where
 
-import Control.Monad.Except (Except)
+import Control.Monad.Except (Except, ExceptT)
 
 import AbsGrusGrus
 import TypecheckerUtils (Type)
 import Utils
+import Control.Monad (MonadPlus)
 
 data IError
     = TypecheckError TCError
@@ -55,6 +56,8 @@ instance Show TCError where
             ]
 
 instance Show EError where
-    show DivideByZeroError = "Divide by zero."
-    show NoPatternMatchedError = "No pattern matched."
-    show UnexpectedTypeExecutionError = "Invalid type error."
+    show DivideByZeroError = "Divide by zero"
+    show NoPatternMatchedError = "No pattern matched"
+    show UnexpectedTypeExecutionError = "Invalid type error"
+    show VariableNotInScopeExecutionError = "Variable not in scope"
+    

@@ -8,8 +8,8 @@ module Executor
     ) where
 
 import Control.Monad.Except
+import Control.Monad.List (ListT, runListT)
 import Control.Monad.Reader
-import Control.Monad.State
 import Data.List (intercalate)
 import qualified Data.Map as M
 
@@ -49,11 +49,10 @@ findEnv ident = do
         Just val -> return val
         Nothing -> throwError $ ExecutionError $ VariableNotInScopeExecutionError
 
+type ExecuteM = ListT (ReaderT Env (ExceptT IError IO))
 
-type ExecuteM = ReaderT Env (ExceptT IError IO)
-
-runExecuteM :: ExecuteM a -> IO (Either IError a)
-runExecuteM executable = runExceptT (runReaderT executable initEnv)
+runExecuteM :: ExecuteM a -> IO (Either IError [a])
+runExecuteM executable = runExceptT $ runReaderT (runListT executable) initEnv
 
 class Executable a where
     execute :: a -> ExecuteM Value
@@ -92,12 +91,12 @@ executeCaseAlternative ((ECall (EAlg (UIdent algE)) exps, VAlg algV vals):ps) ri
 executeCaseAlternative _ _ = return Nothing
 
 executeCaseExpression :: [Case] -> Value -> ExecuteM Value
-executeCaseExpression [] _ = throwError $ ExecutionError NoPatternMatchedError
+executeCaseExpression [] _ = mzero
 executeCaseExpression (Case left right:cs) matchVal = do
     maybeVal <- executeCaseAlternative [(left, matchVal)] right
     case maybeVal of
         Nothing -> executeCaseExpression cs matchVal
-        Just val -> return val
+        Just val -> return val `mplus` executeCaseExpression cs matchVal
 
 executeOp :: (Extractable a, Extractable b) => Exp -> Exp -> (a -> b -> c) -> ExecuteM c
 executeOp e1 e2 op = do
@@ -127,11 +126,12 @@ executeAlgebraicConstructor name algVals exps = do
     return $ VAlg name (algVals ++ newVals)
 
 instance Executable Exp where
-    execute (EIfte eb e1 e2) = do
-        vb <- extract =<< execute eb
-        if vb
-            then execute e1
-            else execute e2
+    execute (EIfte eb e1 e2)
+--        vb <- extract =<< execute eb
+--        if vb
+--            then execute e1
+--            else execute e2
+     = execute e1 `mplus` execute e2
     execute (ECase exp cases) = do
         val <- execute exp
         executeCaseExpression cases val
