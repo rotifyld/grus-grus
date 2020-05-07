@@ -1,6 +1,7 @@
 -- Identifiers
 
 
+token LIdent ((lower | '_') (letter | digit | '_')*) ;
 token UIdent (upper (letter | digit | '_')*) ;
 
 
@@ -19,12 +20,15 @@ terminator Decl "" ;
 -- Declarations
 
 
-DPut.   Decl ::= "put" Exp ";" ;
-DVal.   Decl ::= "val" TypedIdent "=" Exp ";" ;
-DFun.   Decl ::= "fun" Ident "(" [TypedIdent] ")" ":" ParserType "{" Body "}" ;
-DAlg.   Decl ::= "alg" UIdent "=" [TypeAlgConstr] ";" ;
+DPut.           Decl ::= "put" Exp ";" ;
+DVal.           Decl ::= "val" TypedIdent "=" Exp ";" ;
+DFun.           Decl ::= "fun" LIdent "(" [TypedIdent] ")" ":" ParserType "{" Body "}" ;
+DFunParam.      Decl ::= "fun" LIdent "(" [TypedIdent] ")" ":" ParserType "{" Body "}" ;
+DAlg.           Decl ::= "alg" UIdent "=" [TypeAlgConstr] ";" ;
+DAlgParam.      Decl ::= "alg" UIdent "[" [TypeVar] "]" "=" [TypeAlgConstr] ";" ;
 
-TypedIdent.     TypedIdent  ::= Ident ":" ParserType ;
+
+TypedIdent.     TypedIdent  ::= LIdent ":" ParserType ;
 separator TypedIdent "," ;
 
 separator TypeAlgConstr "|" ;
@@ -53,7 +57,7 @@ ECall.          Exp8  ::= Exp8 "(" [Exp] ")" ;
 ELambda.        Exp9 ::= "(" "\\" [TypedIdent] "~>" Body ")" ;
 EInt.           Exp9 ::= Integer ;
 EBool.          Exp9 ::= Boolean ;
-EVar.           Exp9 ::= Ident ;
+EVar.           Exp9 ::= LIdent ;
 EAlg.           Exp9 ::= UIdent ;
 
 separator Exp "," ;

@@ -88,8 +88,8 @@ instance Print Integer where
 instance Print Double where
   prt _ x = doc (shows x)
 
-instance Print AbsGrusGrus.Ident where
-  prt _ (AbsGrusGrus.Ident i) = doc (showString i)
+instance Print AbsGrusGrus.LIdent where
+  prt _ (AbsGrusGrus.LIdent i) = doc (showString i)
 
 instance Print AbsGrusGrus.UIdent where
   prt _ (AbsGrusGrus.UIdent i) = doc (showString i)
@@ -105,14 +105,14 @@ instance Print AbsGrusGrus.Decl where
   prt i e = case e of
     AbsGrusGrus.DPut exp -> prPrec i 0 (concatD [doc (showString "put"), prt 0 exp, doc (showString ";")])
     AbsGrusGrus.DVal typedident exp -> prPrec i 0 (concatD [doc (showString "val"), prt 0 typedident, doc (showString "="), prt 0 exp, doc (showString ";")])
-    AbsGrusGrus.DFun id typedidents parsertype body -> prPrec i 0 (concatD [doc (showString "fun"), prt 0 id, doc (showString "("), prt 0 typedidents, doc (showString ")"), doc (showString ":"), prt 0 parsertype, doc (showString "{"), prt 0 body, doc (showString "}")])
+    AbsGrusGrus.DFun lident typedidents parsertype body -> prPrec i 0 (concatD [doc (showString "fun"), prt 0 lident, doc (showString "("), prt 0 typedidents, doc (showString ")"), doc (showString ":"), prt 0 parsertype, doc (showString "{"), prt 0 body, doc (showString "}")])
     AbsGrusGrus.DAlg uident typealgconstrs -> prPrec i 0 (concatD [doc (showString "alg"), prt 0 uident, doc (showString "="), prt 0 typealgconstrs, doc (showString ";")])
   prtList _ [] = concatD []
   prtList _ (x:xs) = concatD [prt 0 x, prt 0 xs]
 
 instance Print AbsGrusGrus.TypedIdent where
   prt i e = case e of
-    AbsGrusGrus.TypedIdent id parsertype -> prPrec i 0 (concatD [prt 0 id, doc (showString ":"), prt 0 parsertype])
+    AbsGrusGrus.TypedIdent lident parsertype -> prPrec i 0 (concatD [prt 0 lident, doc (showString ":"), prt 0 parsertype])
   prtList _ [] = concatD []
   prtList _ [x] = concatD [prt 0 x]
   prtList _ (x:xs) = concatD [prt 0 x, doc (showString ","), prt 0 xs]
@@ -144,7 +144,7 @@ instance Print AbsGrusGrus.Exp where
     AbsGrusGrus.ELambda typedidents body -> prPrec i 9 (concatD [doc (showString "("), doc (showString "\\"), prt 0 typedidents, doc (showString "~>"), prt 0 body, doc (showString ")")])
     AbsGrusGrus.EInt n -> prPrec i 9 (concatD [prt 0 n])
     AbsGrusGrus.EBool boolean -> prPrec i 9 (concatD [prt 0 boolean])
-    AbsGrusGrus.EVar id -> prPrec i 9 (concatD [prt 0 id])
+    AbsGrusGrus.EVar lident -> prPrec i 9 (concatD [prt 0 lident])
     AbsGrusGrus.EAlg uident -> prPrec i 9 (concatD [prt 0 uident])
   prtList _ [] = concatD []
   prtList _ [x] = concatD [prt 0 x]

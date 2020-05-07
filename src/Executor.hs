@@ -47,7 +47,7 @@ findEnv ident = do
     mVal <- lookupEnv ident
     case mVal of
         Just val -> return val
-        Nothing -> throwError $ ExecutionError $ VariableNotInScopeExecutionError
+        Nothing -> throwError $ ExecutionError $ VariableNotInScopeExecutionError ident
 
 type ExecuteM = ListT (ReaderT Env (ExceptT IError IO))
 
@@ -67,7 +67,7 @@ instance Executable Body where
         v <- execute dExp
         let ident = getName typedIdent
         local (addEnv ident v) $ execute (Body ds bodyExp)
-    execute (Body (DFun (Ident fident) paramsTyped _ fbody:ds) bodyExp) = do
+    execute (Body (DFun (LIdent fident) paramsTyped _ fbody:ds) bodyExp) = do
         env <- ask
         let params = map getName paramsTyped
         let fun = Function (Just fident) params fbody env
@@ -78,7 +78,7 @@ executeCaseAlternative :: [(Exp, Value)] -> Exp -> ExecuteM (Maybe Value)
 executeCaseAlternative [] right = do
     val <- execute right
     return $ Just val
-executeCaseAlternative ((EVar (Ident name), value):ps) right =
+executeCaseAlternative ((EVar (LIdent name), value):ps) right =
     local (addEnv name value) $ executeCaseAlternative ps right
 executeCaseAlternative ((EInt intE, VInt intV):ps) right
     | intE == intV = executeCaseAlternative ps right
@@ -87,7 +87,7 @@ executeCaseAlternative ((EBool BFalse, VBool False):ps) right = executeCaseAlter
 executeCaseAlternative ((EAlg (UIdent algValE), VAlg algValV []):ps) right
     | algValE == algValV = executeCaseAlternative ps right
 executeCaseAlternative ((ECall (EAlg (UIdent algE)) exps, VAlg algV vals):ps) right
-    | algE == algE = executeCaseAlternative (zip exps vals ++ ps) right
+    | algE == algV = executeCaseAlternative (zip exps vals ++ ps) right
 executeCaseAlternative _ _ = return Nothing
 
 executeCaseExpression :: [Case] -> Value -> ExecuteM Value
@@ -126,17 +126,24 @@ executeAlgebraicConstructor name algVals exps = do
     return $ VAlg name (algVals ++ newVals)
 
 instance Executable Exp where
-    execute (EIfte eb e1 e2)
---        vb <- extract =<< execute eb
---        if vb
---            then execute e1
---            else execute e2
-     = execute e1 `mplus` execute e2
+    execute (EIfte eb e1 e2) = do
+        vb <- extract =<< execute eb
+        if vb
+            then execute e1
+            else execute e2
     execute (ECase exp cases) = do
         val <- execute exp
         executeCaseExpression cases val
-    execute (EOr e1 e2) = liftM VBool $ executeOp e1 e2 (||)
-    execute (EAnd e1 e2) = liftM VBool $ executeOp e1 e2 (&&)
+    execute (EOr e1 e2) = do
+        v1 <- extract =<< execute e1
+        if v1
+            then return $ VBool True
+            else liftM VBool $ extract =<< execute e2
+    execute (EAnd e1 e2) = do
+        v1 <- extract =<< execute e1
+        if not v1
+            then return $ VBool False
+            else liftM VBool $ extract =<< execute e2
     execute (EEq e1 e2) = liftM VBool $ executeOp e1 e2 ((==) :: Integer -> Integer -> Bool)
     execute (ENeq e1 e2) = liftM VBool $ executeOp e1 e2 ((/=) :: Integer -> Integer -> Bool)
     execute (ELt e1 e2) = liftM VBool $ executeOp e1 e2 ((<) :: Integer -> Integer -> Bool)
@@ -166,5 +173,5 @@ instance Executable Exp where
     execute (EInt i) = return $ VInt i
     execute (EBool BTrue) = return $ VBool True
     execute (EBool BFalse) = return $ VBool False
-    execute (EVar (Ident name)) = findEnv name
+    execute (EVar (LIdent name)) = findEnv name
     execute (EAlg (UIdent algValue)) = return $ VAlg algValue []

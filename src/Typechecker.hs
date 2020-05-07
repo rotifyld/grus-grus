@@ -65,7 +65,7 @@ typecheckManyWithGuard typeable = do
 --
 typecheckCaseAlternative :: [(Exp, Type)] -> Exp -> TypecheckM Type
 typecheckCaseAlternative [] right = typecheck right
-typecheckCaseAlternative ((EVar (Ident vname), expectedType):es) right =
+typecheckCaseAlternative ((EVar (LIdent vname), expectedType):es) right =
     local (addVariableEnv vname expectedType) $ typecheckCaseAlternative es right
 typecheckCaseAlternative ((EInt _, TInt):es) right = typecheckCaseAlternative es right
 typecheckCaseAlternative ((EBool _, TBool):es) right = typecheckCaseAlternative es right
@@ -107,7 +107,7 @@ instance Typecheckable Exp where
         typecheckCaseExpression alternatives matchType
     typecheck (EInt _) = return TInt
     typecheck (EBool _) = return TBool
-    typecheck (EVar (Ident vname)) = do
+    typecheck (EVar (LIdent vname)) = do
         env <- ask
         case lookupVariableEnv vname env of
             Nothing -> throwError (TypecheckError $ VariableNotInScopeError vname)
@@ -153,12 +153,14 @@ instance Typecheckable Exp where
 
 instance Typecheckable Body where
     typecheck (Body [] e) = typecheck e
-    typecheck (Body (DPut _:ds) e) = typecheck (Body ds e)
-    typecheck (Body (DVal (TypedIdent (Ident valName) expectedPType) valExp:ds) bodyExp) = do
+    typecheck (Body (DPut exp:ds) e) = do
+        typecheck exp
+        typecheck (Body ds e)
+    typecheck (Body (DVal (TypedIdent (LIdent valName) expectedPType) valExp:ds) bodyExp) = do
         expectedType <- typecheck expectedPType
         guardWithTypecheck expectedType valExp
         local (addVariableEnv valName expectedType) $ typecheck (Body ds bodyExp)
-    typecheck (Body (DFun (Ident funName) typedParams bodyPType body:ds) bodyExp) = do
+    typecheck (Body (DFun (LIdent funName) typedParams bodyPType body:ds) bodyExp) = do
         bodyExpectedType <- typecheck bodyPType
         let paramNames = map getName typedParams
         let paramPTypes = map getPType typedParams

@@ -14,7 +14,7 @@ data StdLibFunction =
     StdLibFunction Name [(Name, Type)] Type Body
 
 stdLib :: [StdLibFunction]
-stdLib = [(StdLibFunction "not" [("b", TBool)] TBool (Body [] (EIfte (EVar (Ident "b")) (EBool BFalse) (EBool BTrue))))]
+stdLib = [(StdLibFunction "not" [("b", TBool)] TBool (Body [] (EIfte (EVar (LIdent "b")) (EBool BFalse) (EBool BTrue))))]
 
 toValue :: Executor.Env -> StdLibFunction -> Value
 toValue env (StdLibFunction funName typedParams _ body) = VFun $ Function (Just funName) (map fst typedParams) body env

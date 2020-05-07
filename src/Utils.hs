@@ -20,7 +20,7 @@ class WithName a where
     getName :: a -> Name
 
 instance WithName TypedIdent where
-    getName (TypedIdent (Ident name) _) = name
+    getName (TypedIdent (LIdent name) _) = name
 
 instance WithName TypeAlgConstr where
     getName (TAC (UIdent name)) = name

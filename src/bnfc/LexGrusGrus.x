@@ -29,6 +29,8 @@ $u = [. \n]          -- universal: any character
 $white+ ;
 @rsyms
     { tok (\p s -> PT p (eitherResIdent (TV . share) s)) }
+($s | \_)($l | $d | \_)*
+    { tok (\p s -> PT p (eitherResIdent (T_LIdent . share) s)) }
 $c ($l | $d | \_)*
     { tok (\p s -> PT p (eitherResIdent (T_UIdent . share) s)) }
 
@@ -55,6 +57,7 @@ data Tok =
  | TV !String         -- identifiers
  | TD !String         -- double precision float literals
  | TC !String         -- character literals
+ | T_LIdent !String
  | T_UIdent !String
 
  deriving (Eq,Show,Ord)
@@ -93,6 +96,7 @@ prToken t = case t of
   PT _ (TD s)   -> s
   PT _ (TC s)   -> s
   Err _         -> "#error"
+  PT _ (T_LIdent s) -> s
   PT _ (T_UIdent s) -> s
 
 

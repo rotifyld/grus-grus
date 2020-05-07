@@ -3,7 +3,7 @@
 
 module AbsGrusGrus where
 
-newtype Ident = Ident String
+newtype LIdent = LIdent String
   deriving (Eq, Ord, Show, Read)
 
 newtype UIdent = UIdent String
@@ -15,11 +15,11 @@ data Body = Body [Decl] Exp
 data Decl
     = DPut Exp
     | DVal TypedIdent Exp
-    | DFun Ident [TypedIdent] ParserType Body
+    | DFun LIdent [TypedIdent] ParserType Body
     | DAlg UIdent [TypeAlgConstr]
   deriving (Eq, Ord, Show, Read)
 
-data TypedIdent = TypedIdent Ident ParserType
+data TypedIdent = TypedIdent LIdent ParserType
   deriving (Eq, Ord, Show, Read)
 
 data Exp
@@ -42,7 +42,7 @@ data Exp
     | ELambda [TypedIdent] Body
     | EInt Integer
     | EBool Boolean
-    | EVar Ident
+    | EVar LIdent
     | EAlg UIdent
   deriving (Eq, Ord, Show, Read)
 

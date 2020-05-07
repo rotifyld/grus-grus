@@ -52,17 +52,17 @@ import ErrM
   '||' { PT _ (TS _ 37) }
   '}' { PT _ (TS _ 38) }
   '~>' { PT _ (TS _ 39) }
-  L_ident  { PT _ (TV $$) }
   L_integ  { PT _ (TI $$) }
+  L_LIdent { PT _ (T_LIdent $$) }
   L_UIdent { PT _ (T_UIdent $$) }
 
 %%
 
-Ident   :: { Ident }
-Ident    : L_ident  { Ident $1 }
-
 Integer :: { Integer }
 Integer  : L_integ  { (read ( $1)) :: Integer }
+
+LIdent :: { LIdent}
+LIdent  : L_LIdent { LIdent ($1)}
 
 UIdent :: { UIdent}
 UIdent  : L_UIdent { UIdent ($1)}
@@ -74,10 +74,10 @@ ListDecl : {- empty -} { [] } | ListDecl Decl { flip (:) $1 $2 }
 Decl :: { Decl }
 Decl : 'put' Exp ';' { AbsGrusGrus.DPut $2 }
      | 'val' TypedIdent '=' Exp ';' { AbsGrusGrus.DVal $2 $4 }
-     | 'fun' Ident '(' ListTypedIdent ')' ':' ParserType '{' Body '}' { AbsGrusGrus.DFun $2 $4 $7 $9 }
+     | 'fun' LIdent '(' ListTypedIdent ')' ':' ParserType '{' Body '}' { AbsGrusGrus.DFun $2 $4 $7 $9 }
      | 'alg' UIdent '=' ListTypeAlgConstr ';' { AbsGrusGrus.DAlg $2 $4 }
 TypedIdent :: { TypedIdent }
-TypedIdent : Ident ':' ParserType { AbsGrusGrus.TypedIdent $1 $3 }
+TypedIdent : LIdent ':' ParserType { AbsGrusGrus.TypedIdent $1 $3 }
 ListTypedIdent :: { [TypedIdent] }
 ListTypedIdent : {- empty -} { [] }
                | TypedIdent { (:[]) $1 }
@@ -120,7 +120,7 @@ Exp9 :: { Exp }
 Exp9 : '(' '\\' ListTypedIdent '~>' Body ')' { AbsGrusGrus.ELambda $3 $5 }
      | Integer { AbsGrusGrus.EInt $1 }
      | Boolean { AbsGrusGrus.EBool $1 }
-     | Ident { AbsGrusGrus.EVar $1 }
+     | LIdent { AbsGrusGrus.EVar $1 }
      | UIdent { AbsGrusGrus.EAlg $1 }
      | '(' Exp ')' { $2 }
 ListExp :: { [Exp] }
