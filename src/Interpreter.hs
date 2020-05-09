@@ -13,6 +13,7 @@ import IErr
 import LexGrusGrus
 import ParGrusGrus
 import Typechecker
+import Utils (Pos)
 
 interpret :: IO ()
 interpret = do
@@ -28,10 +29,10 @@ interpret = do
                     putStrLn $ ":: " ++ show t
                     mapM_ print vals
 
-runParser :: String -> Err Body
+runParser :: String -> Err (Body Pos)
 runParser s = pBody (myLexer s)
 
-runInterpreter :: Body -> IO (Either IError (Type, [Value]))
+runInterpreter :: Body Pos -> IO (Either IError (Type, [Value]))
 runInterpreter body =
     case runTypecheckM (typecheck body) of
         (Left err) -> return $ Left err

@@ -8,10 +8,10 @@ import ErrM
 
 }
 
-%name pBody Body
 -- no lexer declaration
 %monad { Err } { thenM } { returnM }
 %tokentype {Token}
+%name pBody_internal Body
 %token
   '!=' { PT _ (TS _ 1) }
   '%' { PT _ (TS _ 2) }
@@ -52,114 +52,348 @@ import ErrM
   '||' { PT _ (TS _ 37) }
   '}' { PT _ (TS _ 38) }
   '~>' { PT _ (TS _ 39) }
-  L_integ  { PT _ (TI $$) }
-  L_LIdent { PT _ (T_LIdent $$) }
-  L_UIdent { PT _ (T_UIdent $$) }
+
+  L_integ {PT _ (TI _)}
+  L_LIdent {PT _ (T_LIdent _)}
+  L_UIdent {PT _ (T_UIdent _)}
 
 %%
 
-Integer :: { Integer }
-Integer  : L_integ  { (read ( $1)) :: Integer }
+Integer :: {
+  (Maybe (Int, Int), Integer)
+}
+: L_integ {
+  (Just (tokenLineCol $1), read (prToken $1)) 
+}
 
-LIdent :: { LIdent}
-LIdent  : L_LIdent { LIdent ($1)}
+LIdent :: {
+  (Maybe (Int, Int), LIdent)
+}
+: L_LIdent {
+  (Just (tokenLineCol $1), LIdent (prToken $1)) 
+}
 
-UIdent :: { UIdent}
-UIdent  : L_UIdent { UIdent ($1)}
+UIdent :: {
+  (Maybe (Int, Int), UIdent)
+}
+: L_UIdent {
+  (Just (tokenLineCol $1), UIdent (prToken $1)) 
+}
 
-Body :: { Body }
-Body : ListDecl Exp { AbsGrusGrus.Body (reverse $1) $2 }
-ListDecl :: { [Decl] }
-ListDecl : {- empty -} { [] } | ListDecl Decl { flip (:) $1 $2 }
-Decl :: { Decl }
-Decl : 'put' Exp ';' { AbsGrusGrus.DPut $2 }
-     | 'val' TypedIdent '=' Exp ';' { AbsGrusGrus.DVal $2 $4 }
-     | 'fun' LIdent '(' ListTypedIdent ')' '->' ParserType '{' Body '}' { AbsGrusGrus.DFun $2 $4 $7 $9 }
-     | 'alg' UIdent '=' ListTypeAlgConstr ';' { AbsGrusGrus.DAlg $2 $4 }
-TypedIdent :: { TypedIdent }
-TypedIdent : LIdent ':' ParserType { AbsGrusGrus.TypedIdent $1 $3 }
-ListTypedIdent :: { [TypedIdent] }
-ListTypedIdent : {- empty -} { [] }
-               | TypedIdent { (:[]) $1 }
-               | TypedIdent ',' ListTypedIdent { (:) $1 $3 }
-ListTypeAlgConstr :: { [TypeAlgConstr] }
-ListTypeAlgConstr : {- empty -} { [] }
-                  | TypeAlgConstr { (:[]) $1 }
-                  | TypeAlgConstr '|' ListTypeAlgConstr { (:) $1 $3 }
-Exp :: { Exp }
-Exp : 'if' Exp 'then' Exp 'else' Exp { AbsGrusGrus.EIfte $2 $4 $6 }
-    | 'case' Exp 'of' '{' ListCase '}' { AbsGrusGrus.ECase $2 $5 }
-    | Exp1 { $1 }
-Exp2 :: { Exp }
-Exp2 : Exp2 '||' Exp3 { AbsGrusGrus.EOr $1 $3 } | Exp3 { $1 }
-Exp3 :: { Exp }
-Exp3 : Exp3 '&&' Exp4 { AbsGrusGrus.EAnd $1 $3 } | Exp4 { $1 }
-Exp4 :: { Exp }
-Exp4 : Exp4 '==' Exp5 { AbsGrusGrus.EEq $1 $3 }
-     | Exp4 '!=' Exp5 { AbsGrusGrus.ENeq $1 $3 }
-     | Exp5 { $1 }
-Exp5 :: { Exp }
-Exp5 : Exp5 '<' Exp6 { AbsGrusGrus.ELt $1 $3 }
-     | Exp5 '>' Exp6 { AbsGrusGrus.EGt $1 $3 }
-     | Exp5 '<=' Exp6 { AbsGrusGrus.ELe $1 $3 }
-     | Exp5 '>=' Exp6 { AbsGrusGrus.EGe $1 $3 }
-     | Exp6 { $1 }
-Exp6 :: { Exp }
-Exp6 : Exp6 '+' Exp7 { AbsGrusGrus.EAdd $1 $3 }
-     | Exp6 '-' Exp7 { AbsGrusGrus.ESub $1 $3 }
-     | Exp7 { $1 }
-Exp7 :: { Exp }
-Exp7 : Exp7 '*' Exp8 { AbsGrusGrus.EMult $1 $3 }
-     | Exp7 '/' Exp8 { AbsGrusGrus.EDiv $1 $3 }
-     | Exp7 '%' Exp8 { AbsGrusGrus.EMod $1 $3 }
-     | Exp8 { $1 }
-Exp8 :: { Exp }
-Exp8 : Exp8 '(' ListExp ')' { AbsGrusGrus.ECall $1 $3 }
-     | Exp9 { $1 }
-Exp9 :: { Exp }
-Exp9 : '(' '\\' ListTypedIdent '~>' Body ')' { AbsGrusGrus.ELambda $3 $5 }
-     | Integer { AbsGrusGrus.EInt $1 }
-     | Boolean { AbsGrusGrus.EBool $1 }
-     | Unit { AbsGrusGrus.EUnit $1 }
-     | LIdent { AbsGrusGrus.EVar $1 }
-     | UIdent { AbsGrusGrus.EAlg $1 }
-     | '(' Exp ')' { $2 }
-ListExp :: { [Exp] }
-ListExp : {- empty -} { [] }
-        | Exp { (:[]) $1 }
-        | Exp ',' ListExp { (:) $1 $3 }
-Exp1 :: { Exp }
-Exp1 : Exp2 { $1 }
-Case :: { Case }
-Case : Exp '~>' Exp { AbsGrusGrus.Case $1 $3 }
-ListCase :: { [Case] }
-ListCase : {- empty -} { [] }
-         | Case { (:[]) $1 }
-         | Case ';' ListCase { (:) $1 $3 }
-Boolean :: { Boolean }
-Boolean : 'True' { AbsGrusGrus.BTrue }
-        | 'False' { AbsGrusGrus.BFalse }
-Unit :: { Unit }
-Unit : 'Unit' { AbsGrusGrus.Unit }
-ParserType :: { ParserType }
-ParserType : ParserType2 '->' ParserType { AbsGrusGrus.PTArrow $1 $3 }
-           | '(' ParserType ',' ListParserType ')' '->' ParserType { AbsGrusGrus.PTArrowMult $2 $4 $7 }
-           | ParserType1 { $1 }
-ParserType2 :: { ParserType }
-ParserType2 : 'Int' { AbsGrusGrus.PTInt }
-            | 'Bool' { AbsGrusGrus.PTBool }
-            | 'Unit' { AbsGrusGrus.PTBool }
-            | UIdent { AbsGrusGrus.PTAlg $1 }
-            | '(' ParserType ')' { $2 }
-ListParserType :: { [ParserType] }
-ListParserType : {- empty -} { [] }
-               | ParserType { (:[]) $1 }
-               | ParserType ',' ListParserType { (:) $1 $3 }
-ParserType1 :: { ParserType }
-ParserType1 : ParserType2 { $1 }
-TypeAlgConstr :: { TypeAlgConstr }
-TypeAlgConstr : UIdent { AbsGrusGrus.TAC $1 }
-              | UIdent '(' ListParserType ')' { AbsGrusGrus.TACArgs $1 $3 }
+Body :: {
+  (Maybe (Int, Int), Body (Maybe (Int, Int)))
+}
+: ListDecl Exp {
+  (fst $1, AbsGrusGrus.Body (fst $1)(reverse (snd $1)) (snd $2)) 
+}
+
+ListDecl :: {
+  (Maybe (Int, Int), [Decl (Maybe (Int, Int))]) 
+}
+: {
+  (Nothing, [])
+}
+| ListDecl Decl {
+  (fst $1, flip (:) (snd $1)(snd $2)) 
+}
+
+Decl :: {
+  (Maybe (Int, Int), Decl (Maybe (Int, Int)))
+}
+: 'put' Exp ';' {
+  (Just (tokenLineCol $1), AbsGrusGrus.DPut (Just (tokenLineCol $1)) (snd $2)) 
+}
+| 'val' TypedIdent '=' Exp ';' {
+  (Just (tokenLineCol $1), AbsGrusGrus.DVal (Just (tokenLineCol $1)) (snd $2)(snd $4)) 
+}
+| 'fun' LIdent '(' ListTypedIdent ')' '->' ParserType '{' Body '}' {
+  (Just (tokenLineCol $1), AbsGrusGrus.DFun (Just (tokenLineCol $1)) (snd $2)(snd $4)(snd $7)(snd $9)) 
+}
+| 'alg' UIdent '=' ListTypeAlgConstr ';' {
+  (Just (tokenLineCol $1), AbsGrusGrus.DAlg (Just (tokenLineCol $1)) (snd $2)(snd $4)) 
+}
+
+TypedIdent :: {
+  (Maybe (Int, Int), TypedIdent (Maybe (Int, Int)))
+}
+: LIdent ':' ParserType {
+  (fst $1, AbsGrusGrus.TypedIdent (fst $1)(snd $1)(snd $3)) 
+}
+
+ListTypedIdent :: {
+  (Maybe (Int, Int), [TypedIdent (Maybe (Int, Int))]) 
+}
+: {
+  (Nothing, [])
+}
+| TypedIdent {
+  (fst $1, (:[]) (snd $1)) 
+}
+| TypedIdent ',' ListTypedIdent {
+  (fst $1, (:) (snd $1)(snd $3)) 
+}
+
+ListTypeAlgConstr :: {
+  (Maybe (Int, Int), [TypeAlgConstr (Maybe (Int, Int))]) 
+}
+: {
+  (Nothing, [])
+}
+| TypeAlgConstr {
+  (fst $1, (:[]) (snd $1)) 
+}
+| TypeAlgConstr '|' ListTypeAlgConstr {
+  (fst $1, (:) (snd $1)(snd $3)) 
+}
+
+Exp :: {
+  (Maybe (Int, Int), Exp (Maybe (Int, Int)))
+}
+: 'if' Exp 'then' Exp 'else' Exp {
+  (Just (tokenLineCol $1), AbsGrusGrus.EIfte (Just (tokenLineCol $1)) (snd $2)(snd $4)(snd $6)) 
+}
+| 'case' Exp 'of' '{' ListCase '}' {
+  (Just (tokenLineCol $1), AbsGrusGrus.ECase (Just (tokenLineCol $1)) (snd $2)(snd $5)) 
+}
+| Exp1 {
+  (fst $1, snd $1)
+}
+
+Exp2 :: {
+  (Maybe (Int, Int), Exp (Maybe (Int, Int)))
+}
+: Exp2 '||' Exp3 {
+  (fst $1, AbsGrusGrus.EOr (fst $1)(snd $1)(snd $3)) 
+}
+| Exp3 {
+  (fst $1, snd $1)
+}
+
+Exp3 :: {
+  (Maybe (Int, Int), Exp (Maybe (Int, Int)))
+}
+: Exp3 '&&' Exp4 {
+  (fst $1, AbsGrusGrus.EAnd (fst $1)(snd $1)(snd $3)) 
+}
+| Exp4 {
+  (fst $1, snd $1)
+}
+
+Exp4 :: {
+  (Maybe (Int, Int), Exp (Maybe (Int, Int)))
+}
+: Exp4 '==' Exp5 {
+  (fst $1, AbsGrusGrus.EEq (fst $1)(snd $1)(snd $3)) 
+}
+| Exp4 '!=' Exp5 {
+  (fst $1, AbsGrusGrus.ENeq (fst $1)(snd $1)(snd $3)) 
+}
+| Exp5 {
+  (fst $1, snd $1)
+}
+
+Exp5 :: {
+  (Maybe (Int, Int), Exp (Maybe (Int, Int)))
+}
+: Exp5 '<' Exp6 {
+  (fst $1, AbsGrusGrus.ELt (fst $1)(snd $1)(snd $3)) 
+}
+| Exp5 '>' Exp6 {
+  (fst $1, AbsGrusGrus.EGt (fst $1)(snd $1)(snd $3)) 
+}
+| Exp5 '<=' Exp6 {
+  (fst $1, AbsGrusGrus.ELe (fst $1)(snd $1)(snd $3)) 
+}
+| Exp5 '>=' Exp6 {
+  (fst $1, AbsGrusGrus.EGe (fst $1)(snd $1)(snd $3)) 
+}
+| Exp6 {
+  (fst $1, snd $1)
+}
+
+Exp6 :: {
+  (Maybe (Int, Int), Exp (Maybe (Int, Int)))
+}
+: Exp6 '+' Exp7 {
+  (fst $1, AbsGrusGrus.EAdd (fst $1)(snd $1)(snd $3)) 
+}
+| Exp6 '-' Exp7 {
+  (fst $1, AbsGrusGrus.ESub (fst $1)(snd $1)(snd $3)) 
+}
+| Exp7 {
+  (fst $1, snd $1)
+}
+
+Exp7 :: {
+  (Maybe (Int, Int), Exp (Maybe (Int, Int)))
+}
+: Exp7 '*' Exp8 {
+  (fst $1, AbsGrusGrus.EMult (fst $1)(snd $1)(snd $3)) 
+}
+| Exp7 '/' Exp8 {
+  (fst $1, AbsGrusGrus.EDiv (fst $1)(snd $1)(snd $3)) 
+}
+| Exp7 '%' Exp8 {
+  (fst $1, AbsGrusGrus.EMod (fst $1)(snd $1)(snd $3)) 
+}
+| Exp8 {
+  (fst $1, snd $1)
+}
+
+Exp8 :: {
+  (Maybe (Int, Int), Exp (Maybe (Int, Int)))
+}
+: Exp8 '(' ListExp ')' {
+  (fst $1, AbsGrusGrus.ECall (fst $1)(snd $1)(snd $3)) 
+}
+| Exp9 {
+  (fst $1, snd $1)
+}
+
+Exp9 :: {
+  (Maybe (Int, Int), Exp (Maybe (Int, Int)))
+}
+: '(' '\\' ListTypedIdent '~>' Body ')' {
+  (Just (tokenLineCol $1), AbsGrusGrus.ELambda (Just (tokenLineCol $1)) (snd $3)(snd $5)) 
+}
+| Integer {
+  (fst $1, AbsGrusGrus.EInt (fst $1)(snd $1)) 
+}
+| Boolean {
+  (fst $1, AbsGrusGrus.EBool (fst $1)(snd $1)) 
+}
+| Unit {
+  (fst $1, AbsGrusGrus.EUnit (fst $1)(snd $1)) 
+}
+| LIdent {
+  (fst $1, AbsGrusGrus.EVar (fst $1)(snd $1)) 
+}
+| UIdent {
+  (fst $1, AbsGrusGrus.EAlg (fst $1)(snd $1)) 
+}
+| '(' Exp ')' {
+  (Just (tokenLineCol $1), snd $2)
+}
+
+ListExp :: {
+  (Maybe (Int, Int), [Exp (Maybe (Int, Int))]) 
+}
+: {
+  (Nothing, [])
+}
+| Exp {
+  (fst $1, (:[]) (snd $1)) 
+}
+| Exp ',' ListExp {
+  (fst $1, (:) (snd $1)(snd $3)) 
+}
+
+Exp1 :: {
+  (Maybe (Int, Int), Exp (Maybe (Int, Int)))
+}
+: Exp2 {
+  (fst $1, snd $1)
+}
+
+Case :: {
+  (Maybe (Int, Int), Case (Maybe (Int, Int)))
+}
+: Exp '~>' Exp {
+  (fst $1, AbsGrusGrus.Case (fst $1)(snd $1)(snd $3)) 
+}
+
+ListCase :: {
+  (Maybe (Int, Int), [Case (Maybe (Int, Int))]) 
+}
+: {
+  (Nothing, [])
+}
+| Case {
+  (fst $1, (:[]) (snd $1)) 
+}
+| Case ';' ListCase {
+  (fst $1, (:) (snd $1)(snd $3)) 
+}
+
+Boolean :: {
+  (Maybe (Int, Int), Boolean (Maybe (Int, Int)))
+}
+: 'True' {
+  (Just (tokenLineCol $1), AbsGrusGrus.BTrue (Just (tokenLineCol $1)))
+}
+| 'False' {
+  (Just (tokenLineCol $1), AbsGrusGrus.BFalse (Just (tokenLineCol $1)))
+}
+
+Unit :: {
+  (Maybe (Int, Int), Unit (Maybe (Int, Int)))
+}
+: 'Unit' {
+  (Just (tokenLineCol $1), AbsGrusGrus.Unit (Just (tokenLineCol $1)))
+}
+
+ParserType :: {
+  (Maybe (Int, Int), ParserType (Maybe (Int, Int)))
+}
+: ParserType2 '->' ParserType {
+  (fst $1, AbsGrusGrus.PTArrow (fst $1)(snd $1)(snd $3)) 
+}
+| '(' ParserType ',' ListParserType ')' '->' ParserType {
+  (Just (tokenLineCol $1), AbsGrusGrus.PTArrowMult (Just (tokenLineCol $1)) (snd $2)(snd $4)(snd $7)) 
+}
+| ParserType1 {
+  (fst $1, snd $1)
+}
+
+ParserType2 :: {
+  (Maybe (Int, Int), ParserType (Maybe (Int, Int)))
+}
+: 'Int' {
+  (Just (tokenLineCol $1), AbsGrusGrus.PTInt (Just (tokenLineCol $1)))
+}
+| 'Bool' {
+  (Just (tokenLineCol $1), AbsGrusGrus.PTBool (Just (tokenLineCol $1)))
+}
+| 'Unit' {
+  (Just (tokenLineCol $1), AbsGrusGrus.PTBool (Just (tokenLineCol $1)))
+}
+| UIdent {
+  (fst $1, AbsGrusGrus.PTAlg (fst $1)(snd $1)) 
+}
+| '(' ParserType ')' {
+  (Just (tokenLineCol $1), snd $2)
+}
+
+ListParserType :: {
+  (Maybe (Int, Int), [ParserType (Maybe (Int, Int))]) 
+}
+: {
+  (Nothing, [])
+}
+| ParserType {
+  (fst $1, (:[]) (snd $1)) 
+}
+| ParserType ',' ListParserType {
+  (fst $1, (:) (snd $1)(snd $3)) 
+}
+
+ParserType1 :: {
+  (Maybe (Int, Int), ParserType (Maybe (Int, Int)))
+}
+: ParserType2 {
+  (fst $1, snd $1)
+}
+
+TypeAlgConstr :: {
+  (Maybe (Int, Int), TypeAlgConstr (Maybe (Int, Int)))
+}
+: UIdent {
+  (fst $1, AbsGrusGrus.TAC (fst $1)(snd $1)) 
+}
+| UIdent '(' ListParserType ')' {
+  (fst $1, AbsGrusGrus.TACArgs (fst $1)(snd $1)(snd $3)) 
+}
+
 {
 
 returnM :: a -> Err a
@@ -170,12 +404,14 @@ thenM = (>>=)
 
 happyError :: [Token] -> Err a
 happyError ts =
-  Bad $ "syntax error at " ++ tokenPos ts ++
+  Bad $ "syntax error at " ++ tokenPos ts ++ 
   case ts of
-    []      -> []
+    [] -> []
     [Err _] -> " due to lexer error"
-    t:_     -> " before `" ++ id(prToken t) ++ "'"
+    t:_ -> " before `" ++ id(prToken t) ++ "'"
 
 myLexer = tokens
+
+pBody = (>>= return . snd) . pBody_internal
 }
 

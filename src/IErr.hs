@@ -1,6 +1,7 @@
 module IErr where
 
 import Control.Monad.Except (Except, ExceptT)
+import Data.Maybe (fromMaybe)
 
 import AbsGrusGrus
 import Control.Monad (MonadPlus)
@@ -8,10 +9,10 @@ import TypecheckerUtils (Type)
 import Utils
 
 data IError
-    = TypecheckError TCError
-    | ExecutionError EError
+    = TypecheckError TypecheckError Pos
+    | ExecutionError ExecutionError Pos
 
-data TCError
+data TypecheckError
     = UnexpectedTypeError
           { expected :: Type
           , actual :: Type
@@ -20,21 +21,20 @@ data TCError
     | AlgebraicNotInScopeError Name
     | NonArrowTypeError Type
     | TooManyArgumentsError Int Int
-    | ConstructorArgumentsError Int Int
-    | EmptyCaseAlternativesListError
-    | CaseTypeMismatchError Type Exp
+    | ConstructorArgumentsError Name Int Int
+    | CaseTypeMismatchError Type
 
-data EError
+data ExecutionError
     = DivideByZeroError
     | NoPatternMatchedError
     | UnexpectedTypeExecutionError
     | VariableNotInScopeExecutionError Name
 
 instance Show IError where
-    show (TypecheckError err) = "Type check error: " ++ show err
-    show (ExecutionError err) = "Runtime error: " ++ show err
+    show (TypecheckError err pos) = unlines ["Type check error:", "At " ++ showPos pos, show err]
+    show (ExecutionError err pos) = unlines ["Runtime error:", "At " ++ showPos pos, show err]
 
-instance Show TCError where
+instance Show TypecheckError where
     show UnexpectedTypeError {expected = etype, actual = atype} =
         unlines ["Unexpected type.", "  Expected:", "    " ++ show etype, "  Actual", "    " ++ show atype]
     show (VariableNotInScopeError vname) = "Variable \"" ++ vname ++ "\" not in scope."
@@ -43,19 +43,16 @@ instance Show TCError where
         unlines ["Expression is not callable.", "  Expected an arrow type.", "  Actual:", "    " ++ show t]
     show (TooManyArgumentsError expected actual) =
         "Too many arguments. Expected " ++ show expected ++ ". Actual " ++ show actual
-    show (ConstructorArgumentsError expected actual) =
-        "Invalid number of arguments in constructor. Expected " ++ show expected ++ ". Actual " ++ show actual
-    show EmptyCaseAlternativesListError = "Empty case list of alternatives."
-    show (CaseTypeMismatchError t exp) =
+    show (ConstructorArgumentsError name expected actual) =
         unlines
-            [ "Coulnd't match types in case expression."
-            , "  Expected:"
-            , "    " ++ show t
-            , "  Actual: type arising from expression:"
-            , "    " ++ show exp
+            [ "Invalid number of arguments in \"" ++ name ++ "\" constructor"
+            , "  Expected: " ++ show expected
+            , "  Actual: " ++ show actual
             ]
+    show (CaseTypeMismatchError t) =
+        unlines ["Couldn't match types in left side of case expression.", "  Expected:", "    " ++ show t]
 
-instance Show EError where
+instance Show ExecutionError where
     show DivideByZeroError = "Divide by zero"
     show NoPatternMatchedError = "No pattern matched"
     show UnexpectedTypeExecutionError = "Invalid type error"

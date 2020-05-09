@@ -11,10 +11,10 @@ import qualified TypecheckerUtils as Typechecker (Env, addVariablesEnv, emptyEnv
 import Utils
 
 data StdLibFunction =
-    StdLibFunction Name [(Name, Type)] Type Body
+    StdLibFunction Name [(Name, Type)] Type (Body Pos)
 
 stdLib :: [StdLibFunction]
-stdLib = [(StdLibFunction "not" [("b", TBool)] TBool (Body [] (EIfte (EVar (LIdent "b")) (EBool BFalse) (EBool BTrue))))]
+stdLib = [(StdLibFunction "not" [("b", TBool)] TBool (Body noPos [] (EIfte noPos (EVar noPos (LIdent "b")) (EBool noPos (BFalse noPos)) (EBool noPos (BTrue noPos)))))]
 
 toValue :: Executor.Env -> StdLibFunction -> Value
 toValue env (StdLibFunction funName typedParams _ body) = VFun $ Function (Just funName) (map fst typedParams) body env

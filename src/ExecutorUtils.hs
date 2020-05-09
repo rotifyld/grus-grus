@@ -24,7 +24,7 @@ instance Show Value where
     show (VAlg name vals) = name ++ "(" ++ (intercalate ", " . map show) vals ++ ")"
 
 data Function =
-    Function (Maybe Name) [Name] Body Env
+    Function (Maybe Name) [Name] (Body Pos) Env
     deriving (Show, Eq)
 
 type Env = M.Map Name Value
