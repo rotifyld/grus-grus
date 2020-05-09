@@ -36,6 +36,11 @@ instance Typecheckable ParserType where
         leftType <- typecheck leftPType
         rightType <- typecheck rightPType
         return $ TArrow [leftType] rightType
+    typecheck (PTArrowMult leftHeadPType leftTailPType rightPType) = do
+        leftHeadType <- typecheck leftHeadPType
+        leftTailType <- mapM typecheck leftTailPType
+        rightType <- typecheck rightPType
+        return $ TArrow (leftHeadType:leftTailType) rightType
 
 guardType :: Type -> Type -> TypecheckM ()
 guardType expectedType actualType =
@@ -107,6 +112,7 @@ instance Typecheckable Exp where
         typecheckCaseExpression alternatives matchType
     typecheck (EInt _) = return TInt
     typecheck (EBool _) = return TBool
+    typecheck (EUnit _) = return TUnit
     typecheck (EVar (LIdent vname)) = do
         env <- ask
         case lookupVariableEnv vname env of

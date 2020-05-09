@@ -9,6 +9,7 @@ import Utils
 data Value
     = VInt Integer
     | VBool Bool
+    | VUnit
     | VFun Function
     | VAlg String [Value]
     deriving (Eq)
@@ -16,6 +17,7 @@ data Value
 instance Show Value where
     show (VInt int) = show int
     show (VBool bool) = show bool
+    show (VUnit) = "Unit"
     show (VFun (Function (Just name) _ _ _)) = "Function \"" ++ name ++ "\""
     show (VFun (Function Nothing _ _ _)) = "Anonymous function."
     show (VAlg name []) = name

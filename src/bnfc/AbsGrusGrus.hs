@@ -42,6 +42,7 @@ data Exp
     | ELambda [TypedIdent] Body
     | EInt Integer
     | EBool Boolean
+    | EUnit Unit
     | EVar LIdent
     | EAlg UIdent
   deriving (Eq, Ord, Show, Read)
@@ -56,7 +57,11 @@ data Unit = Unit
   deriving (Eq, Ord, Show, Read)
 
 data ParserType
-    = PTArrow ParserType ParserType | PTInt | PTBool | PTAlg UIdent
+    = PTArrow ParserType ParserType
+    | PTArrowMult ParserType [ParserType] ParserType
+    | PTInt
+    | PTBool
+    | PTAlg UIdent
   deriving (Eq, Ord, Show, Read)
 
 data TypeAlgConstr = TAC UIdent | TACArgs UIdent [ParserType]

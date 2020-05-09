@@ -8,6 +8,7 @@ import Utils
 data Type
     = TInt
     | TBool
+    | TUnit
     | TArrow [Type] Type
     | TAlgebraic Name
     deriving (Eq)
@@ -15,6 +16,7 @@ data Type
 instance Show Type where
     show TInt = "Int"
     show TBool = "Bool"
+    show TUnit = "Unit"
     show (TAlgebraic name) = name
     show (TArrow leftTypes rightType) = "(" ++ intercalate ", " (map show leftTypes) ++ ") -> " ++ show rightType
 

@@ -74,7 +74,7 @@ ListDecl : {- empty -} { [] } | ListDecl Decl { flip (:) $1 $2 }
 Decl :: { Decl }
 Decl : 'put' Exp ';' { AbsGrusGrus.DPut $2 }
      | 'val' TypedIdent '=' Exp ';' { AbsGrusGrus.DVal $2 $4 }
-     | 'fun' LIdent '(' ListTypedIdent ')' ':' ParserType '{' Body '}' { AbsGrusGrus.DFun $2 $4 $7 $9 }
+     | 'fun' LIdent '(' ListTypedIdent ')' '->' ParserType '{' Body '}' { AbsGrusGrus.DFun $2 $4 $7 $9 }
      | 'alg' UIdent '=' ListTypeAlgConstr ';' { AbsGrusGrus.DAlg $2 $4 }
 TypedIdent :: { TypedIdent }
 TypedIdent : LIdent ':' ParserType { AbsGrusGrus.TypedIdent $1 $3 }
@@ -120,6 +120,7 @@ Exp9 :: { Exp }
 Exp9 : '(' '\\' ListTypedIdent '~>' Body ')' { AbsGrusGrus.ELambda $3 $5 }
      | Integer { AbsGrusGrus.EInt $1 }
      | Boolean { AbsGrusGrus.EBool $1 }
+     | Unit { AbsGrusGrus.EUnit $1 }
      | LIdent { AbsGrusGrus.EVar $1 }
      | UIdent { AbsGrusGrus.EAlg $1 }
      | '(' Exp ')' { $2 }
@@ -142,10 +143,12 @@ Unit :: { Unit }
 Unit : 'Unit' { AbsGrusGrus.Unit }
 ParserType :: { ParserType }
 ParserType : ParserType2 '->' ParserType { AbsGrusGrus.PTArrow $1 $3 }
+           | '(' ParserType ',' ListParserType ')' '->' ParserType { AbsGrusGrus.PTArrowMult $2 $4 $7 }
            | ParserType1 { $1 }
 ParserType2 :: { ParserType }
 ParserType2 : 'Int' { AbsGrusGrus.PTInt }
             | 'Bool' { AbsGrusGrus.PTBool }
+            | 'Unit' { AbsGrusGrus.PTBool }
             | UIdent { AbsGrusGrus.PTAlg $1 }
             | '(' ParserType ')' { $2 }
 ListParserType :: { [ParserType] }

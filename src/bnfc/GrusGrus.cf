@@ -20,13 +20,10 @@ terminator Decl "" ;
 -- Declarations
 
 
-DPut.           Decl ::= "put" Exp ";" ;
-DVal.           Decl ::= "val" TypedIdent "=" Exp ";" ;
-DFun.           Decl ::= "fun" LIdent "(" [TypedIdent] ")" ":" ParserType "{" Body "}" ;
-DFunParam.      Decl ::= "fun" LIdent "(" [TypedIdent] ")" ":" ParserType "{" Body "}" ;
-DAlg.           Decl ::= "alg" UIdent "=" [TypeAlgConstr] ";" ;
-DAlgParam.      Decl ::= "alg" UIdent "[" [TypeVar] "]" "=" [TypeAlgConstr] ";" ;
-
+DPut.   Decl ::= "put" Exp ";" ;
+DVal.   Decl ::= "val" TypedIdent "=" Exp ";" ;
+DFun.   Decl ::= "fun" LIdent "(" [TypedIdent] ")" "->" ParserType "{" Body "}" ;
+DAlg.   Decl ::= "alg" UIdent "=" [TypeAlgConstr] ";" ;
 
 TypedIdent.     TypedIdent  ::= LIdent ":" ParserType ;
 separator TypedIdent "," ;
@@ -54,11 +51,12 @@ EMult.          Exp7  ::= Exp7 "*" Exp8 ;
 EDiv.           Exp7  ::= Exp7 "/" Exp8 ;
 EMod.           Exp7  ::= Exp7 "%" Exp8 ;
 ECall.          Exp8  ::= Exp8 "(" [Exp] ")" ;
-ELambda.        Exp9 ::= "(" "\\" [TypedIdent] "~>" Body ")" ;
-EInt.           Exp9 ::= Integer ;
-EBool.          Exp9 ::= Boolean ;
-EVar.           Exp9 ::= LIdent ;
-EAlg.           Exp9 ::= UIdent ;
+ELambda.        Exp9  ::= "(" "\\" [TypedIdent] "~>" Body ")" ;
+EInt.           Exp9  ::= Integer ;
+EBool.          Exp9  ::= Boolean ;
+EUnit.          Exp9  ::= Unit ;
+EVar.           Exp9  ::= LIdent ;
+EAlg.           Exp9  ::= UIdent ;
 
 separator Exp "," ;
 coercions Exp 9 ;
@@ -82,8 +80,10 @@ Unit.       Unit ::= "Unit" ;
 
 
 PTArrow.         ParserType  ::= ParserType2 "->" ParserType ;
+PTArrowMult.     ParserType  ::= "(" ParserType "," [ParserType] ")" "->" ParserType ;
 PTInt.           ParserType2 ::= "Int" ;
 PTBool.          ParserType2 ::= "Bool" ;
+PTBool.          ParserType2 ::= "Unit" ;
 PTAlg.           ParserType2 ::= UIdent ;
 
 

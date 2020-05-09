@@ -173,5 +173,6 @@ instance Executable Exp where
     execute (EInt i) = return $ VInt i
     execute (EBool BTrue) = return $ VBool True
     execute (EBool BFalse) = return $ VBool False
+    execute (EUnit _) = return VUnit
     execute (EVar (LIdent name)) = findEnv name
     execute (EAlg (UIdent algValue)) = return $ VAlg algValue []

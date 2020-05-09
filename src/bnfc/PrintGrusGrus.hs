@@ -105,7 +105,7 @@ instance Print AbsGrusGrus.Decl where
   prt i e = case e of
     AbsGrusGrus.DPut exp -> prPrec i 0 (concatD [doc (showString "put"), prt 0 exp, doc (showString ";")])
     AbsGrusGrus.DVal typedident exp -> prPrec i 0 (concatD [doc (showString "val"), prt 0 typedident, doc (showString "="), prt 0 exp, doc (showString ";")])
-    AbsGrusGrus.DFun lident typedidents parsertype body -> prPrec i 0 (concatD [doc (showString "fun"), prt 0 lident, doc (showString "("), prt 0 typedidents, doc (showString ")"), doc (showString ":"), prt 0 parsertype, doc (showString "{"), prt 0 body, doc (showString "}")])
+    AbsGrusGrus.DFun lident typedidents parsertype body -> prPrec i 0 (concatD [doc (showString "fun"), prt 0 lident, doc (showString "("), prt 0 typedidents, doc (showString ")"), doc (showString "->"), prt 0 parsertype, doc (showString "{"), prt 0 body, doc (showString "}")])
     AbsGrusGrus.DAlg uident typealgconstrs -> prPrec i 0 (concatD [doc (showString "alg"), prt 0 uident, doc (showString "="), prt 0 typealgconstrs, doc (showString ";")])
   prtList _ [] = concatD []
   prtList _ (x:xs) = concatD [prt 0 x, prt 0 xs]
@@ -144,6 +144,7 @@ instance Print AbsGrusGrus.Exp where
     AbsGrusGrus.ELambda typedidents body -> prPrec i 9 (concatD [doc (showString "("), doc (showString "\\"), prt 0 typedidents, doc (showString "~>"), prt 0 body, doc (showString ")")])
     AbsGrusGrus.EInt n -> prPrec i 9 (concatD [prt 0 n])
     AbsGrusGrus.EBool boolean -> prPrec i 9 (concatD [prt 0 boolean])
+    AbsGrusGrus.EUnit unit -> prPrec i 9 (concatD [prt 0 unit])
     AbsGrusGrus.EVar lident -> prPrec i 9 (concatD [prt 0 lident])
     AbsGrusGrus.EAlg uident -> prPrec i 9 (concatD [prt 0 uident])
   prtList _ [] = concatD []
@@ -175,6 +176,7 @@ instance Print AbsGrusGrus.Unit where
 instance Print AbsGrusGrus.ParserType where
   prt i e = case e of
     AbsGrusGrus.PTArrow parsertype1 parsertype2 -> prPrec i 0 (concatD [prt 2 parsertype1, doc (showString "->"), prt 0 parsertype2])
+    AbsGrusGrus.PTArrowMult parsertype1 parsertypes parsertype2 -> prPrec i 0 (concatD [doc (showString "("), prt 0 parsertype1, doc (showString ","), prt 0 parsertypes, doc (showString ")"), doc (showString "->"), prt 0 parsertype2])
     AbsGrusGrus.PTInt -> prPrec i 2 (concatD [doc (showString "Int")])
     AbsGrusGrus.PTBool -> prPrec i 2 (concatD [doc (showString "Bool")])
     AbsGrusGrus.PTAlg uident -> prPrec i 2 (concatD [prt 0 uident])
