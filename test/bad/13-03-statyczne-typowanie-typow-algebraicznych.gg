@@ -1,0 +1,5 @@
+alg MaybePair = JustPair(Int, Int) | Nothing;
+
+val mp: MaybePair = JustPair(2);
+
+Unit

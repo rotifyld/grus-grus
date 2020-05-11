@@ -1,0 +1,5 @@
+alg FourT = Four(Int, Int, Int, Int);
+
+case Four(1, 2, 3, 4) of {
+    Four(a, b, c) ~> a
+}

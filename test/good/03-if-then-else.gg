@@ -1,0 +1,2 @@
+
+if not(True || False) then 0 else 1

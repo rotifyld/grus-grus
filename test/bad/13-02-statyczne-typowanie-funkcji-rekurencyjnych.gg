@@ -1,0 +1,7 @@
+fun fib(n: Int) -> Int {
+    if n <= 1
+        then n
+        else fib(Unit)
+}
+
+Unit

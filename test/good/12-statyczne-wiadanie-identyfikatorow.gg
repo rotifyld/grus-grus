@@ -1,0 +1,9 @@
+val x: Int = 1;
+
+fun f() -> Int {
+    x
+}
+
+val x: Int = 2;
+
+f()

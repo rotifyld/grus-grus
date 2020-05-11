@@ -8,8 +8,6 @@ ChangeLog.md
 LICENSE
 Setup.hs
 
-*.gg
-
 src/concepts
 *~
 # Project exclude paths

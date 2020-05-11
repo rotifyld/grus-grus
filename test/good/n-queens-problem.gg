@@ -1,0 +1,55 @@
+val n: Int = 6;
+
+alg List = Nil | Cons(Int, List);
+
+fun abs(n: Int) -> Int {
+    if n < 0 then (0 - n) else n
+}
+
+fun nList(n: Int) -> List {
+    fun nListAcc(i: Int, n: Int) -> List {
+        if i + 1 == n
+            then Cons(i, Nil)
+            else Cons(i, nListAcc(i + 1, n))
+    }
+    nListAcc(0, n)
+}
+
+fun insert(el: Int, l: List) -> List {
+    case l of {
+        _ ~> Cons(el, l);
+        Cons(head, tail) ~> Cons(head, insert(el, tail));
+    }
+}
+
+fun permutation(l: List) -> List {
+    case l of {
+        Cons(x, Nil) ~> l;
+        Cons(head, tail) ~> insert(head, permutation(tail));
+    }
+}
+
+fun safeQueen(queens: List, queen: Int, d: Int) -> Bool {
+    case queens of {
+        Nil ~> True;
+        Cons(q, qs) ~> 
+            queen != q && 
+            abs(queen - q) != d &&
+            safeQueen(qs, queen, d + 1);
+    }
+}
+
+fun safeQueens(l: List) -> Bool {
+    case l of {
+        Nil ~> True;
+        Cons(q, qs) ~> 
+            safeQueen(qs, q, 1) && 
+            safeQueens(qs);
+    }
+}
+
+val p: List = permutation(nList(n));
+
+case safeQueens(p) of {
+    True ~> p
+}

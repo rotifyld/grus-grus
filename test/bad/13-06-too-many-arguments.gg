@@ -1,0 +1,5 @@
+fun f(x: Int, y: Int) -> Int {
+    0
+}
+
+f(1, 2, 3)

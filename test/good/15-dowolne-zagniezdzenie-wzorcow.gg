@@ -1,0 +1,20 @@
+alg Tree = Leaf | Branch(Int, Tree, Tree);
+
+val t: Tree =   Branch(0, 
+                    Branch(1, 
+                        Branch(2, Leaf, Leaf), 
+                        Branch(3, Leaf, Leaf)),
+                    Branch(4,
+                        Branch(5, Leaf, Leaf),
+                        Branch(6, Leaf, Leaf)));
+
+fun allGrandchildren(t: Tree) -> Int {
+    case t of {
+        Branch(a, Branch(b, Branch(c, d, e), f), g) ~> c;
+        Branch(a, Branch(b, c, Branch(d, e, f)), g) ~> d;
+        Branch(a, b, Branch(c, Branch(d, e, f), g)) ~> d;
+        Branch(a, b, Branch(c, d, Branch(e, f, g))) ~> e;
+    }
+}
+
+allGrandchildren(t)
