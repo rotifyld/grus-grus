@@ -14,7 +14,7 @@ data Body a = Body a [Decl a] (Exp a)
 
 instance Functor Body where
     fmap f x = case x of
-        Body a decls exp -> Body (f a) (map (fmap f) decls) (fmap f exp)
+        Body a decls expr -> Body (f a) (map (fmap f) decls) (fmap f expr)
 data Decl a
     = DPut a (Exp a)
     | DVal a (TypedIdent a) (Exp a)
@@ -24,8 +24,8 @@ data Decl a
 
 instance Functor Decl where
     fmap f x = case x of
-        DPut a exp -> DPut (f a) (fmap f exp)
-        DVal a typedident exp -> DVal (f a) (fmap f typedident) (fmap f exp)
+        DPut a expr -> DPut (f a) (fmap f expr)
+        DVal a typedident expr -> DVal (f a) (fmap f typedident) (fmap f expr)
         DFun a lident typedidents parsertype body -> DFun (f a) lident (map (fmap f) typedidents) (fmap f parsertype) (fmap f body)
         DAlg a uident typealgconstrs -> DAlg (f a) uident (map (fmap f) typealgconstrs)
 data TypedIdent a = TypedIdent a LIdent (ParserType a)
@@ -62,7 +62,7 @@ data Exp a
 instance Functor Exp where
     fmap f x = case x of
         EIfte a exp1 exp2 exp3 -> EIfte (f a) (fmap f exp1) (fmap f exp2) (fmap f exp3)
-        ECase a exp cases -> ECase (f a) (fmap f exp) (map (fmap f) cases)
+        ECase a expr cases -> ECase (f a) (fmap f expr) (map (fmap f) cases)
         EOr a exp1 exp2 -> EOr (f a) (fmap f exp1) (fmap f exp2)
         EAnd a exp1 exp2 -> EAnd (f a) (fmap f exp1) (fmap f exp2)
         EEq a exp1 exp2 -> EEq (f a) (fmap f exp1) (fmap f exp2)
@@ -76,7 +76,7 @@ instance Functor Exp where
         EMult a exp1 exp2 -> EMult (f a) (fmap f exp1) (fmap f exp2)
         EDiv a exp1 exp2 -> EDiv (f a) (fmap f exp1) (fmap f exp2)
         EMod a exp1 exp2 -> EMod (f a) (fmap f exp1) (fmap f exp2)
-        ECall a exp exps -> ECall (f a) (fmap f exp) (map (fmap f) exps)
+        ECall a expr exps -> ECall (f a) (fmap f expr) (map (fmap f) exps)
         ELambda a typedidents body -> ELambda (f a) (map (fmap f) typedidents) (fmap f body)
         EInt a integer -> EInt (f a) integer
         EBool a boolean -> EBool (f a) (fmap f boolean)

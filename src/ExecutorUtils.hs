@@ -1,9 +1,18 @@
-module ExecutorUtils where
+module ExecutorUtils
+    ( Value(..)
+    , Function(..)
+    , Env
+    , emptyEnv
+    , addEnv
+    , addManyEnv
+    , unionEnv
+    ) where
 
 import Data.List (intercalate)
 import qualified Data.Map as M
 
 import AbsGrusGrus
+
 import Utils
 
 data Value

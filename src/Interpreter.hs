@@ -2,23 +2,20 @@ module Interpreter
     ( interpret
     ) where
 
-import Control.Monad.Except (Except)
-import Data.Either (partitionEithers)
+import Control.Monad (when)
 import System.IO (hPrint, hPutStrLn, stderr)
 
 import AbsGrusGrus (Body)
+import ParGrusGrus (pBody, myLexer)
+
 import ErrM
 import Executor
 import IErr
-import LexGrusGrus
-import ParGrusGrus
 import Typechecker
 import Utils (Pos)
 
-interpret :: IO ()
-interpret = do
-    putStrLn ""
-    programStr <- getContents
+interpret :: String -> Bool -> IO ()
+interpret programStr showType = do
     case runParser programStr of
         (Bad str) -> hPutStrLn stderr str
         (Ok body) -> do
@@ -26,7 +23,7 @@ interpret = do
             case eitherValueType of
                 (Left err) -> hPrint stderr err
                 (Right (t, vals)) -> do
-                    putStrLn $ ":: " ++ show t
+                    when (showType) $ putStrLn $ ":: " ++ show t
                     mapM_ print vals
 
 runParser :: String -> Err (Body Pos)

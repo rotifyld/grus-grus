@@ -8,12 +8,11 @@ module Typechecker
     ) where
 
 import Control.Monad (when)
-import Control.Monad.Except
-import Control.Monad.Reader
-import qualified Data.Map as M
+import Control.Monad.Except (Except, runExcept, throwError)
+import Control.Monad.Reader (ReaderT, ask, local, runReaderT)
 
 import AbsGrusGrus
-import Data.List (intercalate)
+
 import IErr
 import StandardLibrary (initialTypecheckEnv)
 import TypecheckerUtils
@@ -30,20 +29,6 @@ runTypecheckM typecheckable = runExcept (runReaderT typecheckable initEnv)
 class Typecheckable a where
     typecheck :: a -> TypecheckM Type
 
-instance Typecheckable (ParserType Pos) where
-    typecheck (PTInt _) = return TInt
-    typecheck (PTBool _) = return TBool
-    typecheck (PTAlg _ (UIdent aname)) = return $ TAlgebraic aname
-    typecheck (PTArrow _ leftPType rightPType) = do
-        leftType <- typecheck leftPType
-        rightType <- typecheck rightPType
-        return $ TArrow [leftType] rightType
-    typecheck (PTArrowMult _ leftHeadPType leftTailPType rightPType) = do
-        leftHeadType <- typecheck leftHeadPType
-        leftTailType <- mapM typecheck leftTailPType
-        rightType <- typecheck rightPType
-        return $ TArrow (leftHeadType : leftTailType) rightType
-
 guardType :: Pos -> Type -> Type -> TypecheckM ()
 guardType p expectedType actualType =
     when (actualType /= expectedType) $ throwError $ TypecheckError (UnexpectedTypeError expectedType actualType) p
@@ -57,6 +42,20 @@ guardWithTypecheck :: (Typecheckable a, WithPos a) => Type -> a -> TypecheckM ()
 guardWithTypecheck expectedType typecheckable = do
     actualType <- typecheck typecheckable
     guardType (pos typecheckable) expectedType actualType
+
+instance Typecheckable (ParserType Pos) where
+    typecheck (PTInt _) = return TInt
+    typecheck (PTBool _) = return TBool
+    typecheck (PTAlg _ (UIdent aname)) = return $ TAlgebraic aname
+    typecheck (PTArrow _ leftPType rightPType) = do
+        leftType <- typecheck leftPType
+        rightType <- typecheck rightPType
+        return $ TArrow [leftType] rightType
+    typecheck (PTArrowMult _ leftHeadPType leftTailPType rightPType) = do
+        leftHeadType <- typecheck leftHeadPType
+        leftTailType <- mapM typecheck leftTailPType
+        rightType <- typecheck rightPType
+        return $ TArrow (leftHeadType : leftTailType) rightType
 
 -- Nomenclature:
 --  [[case expression]] ::= case [[match]] of { [[alternative]]; ... }
@@ -72,7 +71,7 @@ typecheckCaseAlternative ((EBool _ _, TBool):es) right = typecheckCaseAlternativ
 typecheckCaseAlternative ((algVal@(EAlg _ _), algType@(TAlgebraic _)):es) right = do
     guardWithTypecheck algType algVal
     typecheckCaseAlternative es right
-typecheckCaseAlternative ((ECall p algVal@(EAlg _ (UIdent algValName)) callExps, algExpectedType@(TAlgebraic _)):es) right = do
+typecheckCaseAlternative ((ECall p (EAlg _ (UIdent algValName)) callExps, algExpectedType@(TAlgebraic _)):es) right = do
     env <- ask
     case lookupVariableEnv algValName env of
         Nothing -> throwError $ TypecheckError (AlgebraicNotInScopeError algValName) p
@@ -84,7 +83,7 @@ typecheckCaseAlternative ((ECall p algVal@(EAlg _ (UIdent algValName)) callExps,
                 throwError $ TypecheckError (ConstructorArgumentsError algValName expectedArgsNum actualArgsNum) p
             typecheckCaseAlternative (zip callExps constructorShape ++ es) right
         (Just t) -> throwError $ TypecheckError (UnexpectedTypeError algExpectedType t) p
-typecheckCaseAlternative ((e, t):es) _ = throwError $ TypecheckError (CaseTypeMismatchError t) (pos e)
+typecheckCaseAlternative ((e, t):_) _ = throwError $ TypecheckError (CaseTypeMismatchError t) (pos e)
 
 -- returns type of right of (any) alternative
 typecheckCaseExpression :: [Case Pos] -> Type -> TypecheckM Type
@@ -97,14 +96,6 @@ typecheckCaseExpression (Case p left right:cs) matchType = do
     return thisAlternativeType
 
 instance Typecheckable (Exp Pos) where
-    typecheck (EIfte _ condition leftExp rightExp) = do
-        guardWithTypecheck TBool condition
-        leftType <- typecheck leftExp
-        guardWithTypecheck leftType rightExp
-        return leftType
-    typecheck (ECase _ match alternatives) = do
-        matchType <- typecheck match
-        typecheckCaseExpression alternatives matchType
     typecheck (EInt _ _) = return TInt
     typecheck (EBool _ _) = return TBool
     typecheck (EUnit _ _) = return TUnit
@@ -131,13 +122,26 @@ instance Typecheckable (Exp Pos) where
     typecheck (EMult _ e1 e2) = guardBinaryType e1 e2 TInt TInt >> return TInt
     typecheck (EDiv _ e1 e2) = guardBinaryType e1 e2 TInt TInt >> return TInt
     typecheck (EMod _ e1 e2) = guardBinaryType e1 e2 TInt TInt >> return TInt
+    typecheck (EIfte _ condition leftExp rightExp) = do
+        guardWithTypecheck TBool condition
+        leftType <- typecheck leftExp
+        guardWithTypecheck leftType rightExp
+        return leftType
+    typecheck (ECase _ match alternatives) = do
+        matchType <- typecheck match
+        typecheckCaseExpression alternatives matchType
+    typecheck (ELambda _ typedParams body) = do
+        let paramNames = map getName typedParams
+        let paramPTypes = map getPType typedParams
+        paramTypes <- mapM typecheck paramPTypes
+        bodyType <- local (addVariablesEnv paramNames paramTypes) $ typecheck body
+        return $ TArrow paramTypes bodyType
     typecheck (ECall p funExp argExpressions) = do
         funType <- typecheck funExp
         case funType of
             (TArrow argExpectedTypes resultExpectedType) -> do
                 let numExpectedArgs = length argExpectedTypes
                 let numActualArgs = length argExpressions
-                let ordSuppliedArguments = compare numExpectedArgs numActualArgs
                 when (numExpectedArgs < numActualArgs) $
                     throwError $ TypecheckError (TooManyArgumentsError numExpectedArgs numActualArgs) p
                 mapM_ (uncurry guardWithTypecheck) (zip argExpectedTypes argExpressions)
@@ -145,17 +149,11 @@ instance Typecheckable (Exp Pos) where
                     then return resultExpectedType
                     else return $ TArrow (drop numActualArgs argExpectedTypes) resultExpectedType
             _ -> throwError $ TypecheckError (NonArrowTypeError funType) p
-    typecheck (ELambda _ typedParams body) = do
-        let paramNames = map getName typedParams
-        let paramPTypes = map getPType typedParams
-        paramTypes <- mapM typecheck paramPTypes
-        bodyType <- local (addVariablesEnv paramNames paramTypes) $ typecheck body
-        return $ TArrow paramTypes bodyType
 
 instance Typecheckable (Body Pos) where
     typecheck (Body _ [] e) = typecheck e
-    typecheck (Body p (DPut _ exp:ds) e) = do
-        typecheck exp
+    typecheck (Body p (DPut _ expr:ds) e) = do
+        _ <- typecheck expr
         typecheck (Body p ds e)
     typecheck (Body p (DVal _ (TypedIdent _ (LIdent valName) expectedPType) valExp:ds) bodyExp) = do
         expectedType <- typecheck expectedPType
@@ -182,5 +180,4 @@ instance Typecheckable (Body Pos) where
                              then algType
                              else TArrow types algType)
                     valueParamTypes
-        local (addVariablesEnv valueNames valueTypes . addAlgShapesEnv valueNames valueParamTypes) $
-            typecheck (Body p ds bodyExp)
+        local (addVariablesEnv valueNames valueTypes) $ typecheck (Body p ds bodyExp)

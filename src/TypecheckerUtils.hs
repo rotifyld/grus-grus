@@ -1,8 +1,15 @@
-module TypecheckerUtils where
-
-import qualified Data.Map as M
+module TypecheckerUtils
+    ( Type(..)
+    , Env(..)
+    , emptyEnv
+    , addVariableEnv
+    , addVariablesEnv
+    , lookupVariableEnv
+    ) where
 
 import Data.List (intercalate)
+import qualified Data.Map as M
+
 import Utils
 
 data Type
@@ -23,12 +30,11 @@ instance Show Type where
 data Env =
     Env
         { variableTable :: M.Map Name Type
-        , algShapeTable :: M.Map Name [Type]
         }
     deriving (Show)
 
 emptyEnv :: Env
-emptyEnv = Env {variableTable = M.empty, algShapeTable = M.empty}
+emptyEnv = Env {variableTable = M.empty}
 
 addVariableEnv :: Name -> Type -> Env -> Env
 addVariableEnv vname vtype env@Env {variableTable = vtable} = env {variableTable = M.insert vname vtype vtable}
@@ -38,12 +44,3 @@ addVariablesEnv vnames vtypes env = foldl (\e (n, t) -> addVariableEnv n t e) en
 
 lookupVariableEnv :: Name -> Env -> Maybe Type
 lookupVariableEnv vname Env {variableTable = vtable} = M.lookup vname vtable
-
-addAlgShapeEnv :: Name -> [Type] -> Env -> Env
-addAlgShapeEnv name shape env@Env {algShapeTable = astable} = env {algShapeTable = M.insert name shape astable}
-
-addAlgShapesEnv :: [Name] -> [[Type]] -> Env -> Env
-addAlgShapesEnv names shapes env = foldl (\e (n, s) -> addAlgShapeEnv n s e) env (zip names shapes)
-
-lookupAlgShapeEnv :: Name -> Env -> Maybe [Type]
-lookupAlgShapeEnv name Env {algShapeTable = astable} = M.lookup name astable

@@ -90,12 +90,12 @@ instance Print UIdent where
 
 instance Print (Body a) where
   prt i e = case e of
-    Body _ decls exp -> prPrec i 0 (concatD [prt 0 decls, prt 0 exp])
+    Body _ decls expr -> prPrec i 0 (concatD [prt 0 decls, prt 0 expr])
 
 instance Print (Decl a) where
   prt i e = case e of
-    DPut _ exp -> prPrec i 0 (concatD [doc (showString "put"), prt 0 exp, doc (showString ";")])
-    DVal _ typedident exp -> prPrec i 0 (concatD [doc (showString "val"), prt 0 typedident, doc (showString "="), prt 0 exp, doc (showString ";")])
+    DPut _ expr -> prPrec i 0 (concatD [doc (showString "put"), prt 0 expr, doc (showString ";")])
+    DVal _ typedident expr -> prPrec i 0 (concatD [doc (showString "val"), prt 0 typedident, doc (showString "="), prt 0 expr, doc (showString ";")])
     DFun _ lident typedidents parsertype body -> prPrec i 0 (concatD [doc (showString "fun"), prt 0 lident, doc (showString "("), prt 0 typedidents, doc (showString ")"), doc (showString "->"), prt 0 parsertype, doc (showString "{"), prt 0 body, doc (showString "}")])
     DAlg _ uident typealgconstrs -> prPrec i 0 (concatD [doc (showString "alg"), prt 0 uident, doc (showString "="), prt 0 typealgconstrs, doc (showString ";")])
   prtList _ [] = (concatD [])
@@ -109,7 +109,7 @@ instance Print (TypedIdent a) where
 instance Print (Exp a) where
   prt i e = case e of
     EIfte _ exp1 exp2 exp3 -> prPrec i 0 (concatD [doc (showString "if"), prt 0 exp1, doc (showString "then"), prt 0 exp2, doc (showString "else"), prt 0 exp3])
-    ECase _ exp cases -> prPrec i 0 (concatD [doc (showString "case"), prt 0 exp, doc (showString "of"), doc (showString "{"), prt 0 cases, doc (showString "}")])
+    ECase _ expr cases -> prPrec i 0 (concatD [doc (showString "case"), prt 0 expr, doc (showString "of"), doc (showString "{"), prt 0 cases, doc (showString "}")])
     EOr _ exp1 exp2 -> prPrec i 2 (concatD [prt 2 exp1, doc (showString "||"), prt 3 exp2])
     EAnd _ exp1 exp2 -> prPrec i 3 (concatD [prt 3 exp1, doc (showString "&&"), prt 4 exp2])
     EEq _ exp1 exp2 -> prPrec i 4 (concatD [prt 4 exp1, doc (showString "=="), prt 5 exp2])
@@ -123,7 +123,7 @@ instance Print (Exp a) where
     EMult _ exp1 exp2 -> prPrec i 7 (concatD [prt 7 exp1, doc (showString "*"), prt 8 exp2])
     EDiv _ exp1 exp2 -> prPrec i 7 (concatD [prt 7 exp1, doc (showString "/"), prt 8 exp2])
     EMod _ exp1 exp2 -> prPrec i 7 (concatD [prt 7 exp1, doc (showString "%"), prt 8 exp2])
-    ECall _ exp exps -> prPrec i 8 (concatD [prt 8 exp, doc (showString "("), prt 0 exps, doc (showString ")")])
+    ECall _ expr exps -> prPrec i 8 (concatD [prt 8 expr, doc (showString "("), prt 0 exps, doc (showString ")")])
     ELambda _ typedidents body -> prPrec i 9 (concatD [doc (showString "("), doc (showString "\\"), prt 0 typedidents, doc (showString "~>"), prt 0 body, doc (showString ")")])
     EInt _ n -> prPrec i 9 (concatD [prt 0 n])
     EBool _ boolean -> prPrec i 9 (concatD [prt 0 boolean])

@@ -9,13 +9,15 @@ module Executor
     , Env
     ) where
 
-import Control.Monad.Except
+import Control.Monad (liftM, mplus, mzero, when)
+import Control.Monad.Except (ExceptT, runExceptT, throwError)
 import Control.Monad.List (ListT, runListT)
-import Control.Monad.Reader
-import Data.List (intercalate)
+import Control.Monad.Reader (ReaderT, ask, asks, local, runReaderT)
+import Control.Monad.Trans (liftIO)
 import qualified Data.Map as M
 
 import AbsGrusGrus
+
 import ExecutorUtils
 import IErr
 import StandardLibrary (initialExecuteEnv)
@@ -36,7 +38,10 @@ instance Extractable Function where
     extract (VFun fun) = return fun
     extract _ = throwError $ ExecutionError UnexpectedTypeExecutionError Nothing
 
-type Loc = Int
+type ExecuteM = ListT (ReaderT Env (ExceptT IError IO))
+
+runExecuteM :: ExecuteM a -> IO (Either IError [a])
+runExecuteM executable = runExceptT $ runReaderT (runListT executable) initEnv
 
 initEnv :: Env
 initEnv = initialExecuteEnv
@@ -51,30 +56,8 @@ findEnv ident p = do
         Just val -> return val
         Nothing -> throwError $ ExecutionError (VariableNotInScopeExecutionError ident) p
 
-type ExecuteM = ListT (ReaderT Env (ExceptT IError IO))
-
-runExecuteM :: ExecuteM a -> IO (Either IError [a])
-runExecuteM executable = runExceptT $ runReaderT (runListT executable) initEnv
-
 class Executable a where
     execute :: a -> ExecuteM Value
-
-instance Executable (Body Pos) where
-    execute (Body _ [] e) = execute e
-    execute (Body p (DPut _ exp:ds) bodyExp) = do
-        v <- execute exp
-        liftIO . putStrLn $ ">> " ++ show v
-        execute (Body p ds bodyExp)
-    execute (Body p (DVal _ typedIdent dExp:ds) bodyExp) = do
-        v <- execute dExp
-        let ident = getName typedIdent
-        local (addEnv ident v) $ execute (Body p ds bodyExp)
-    execute (Body p (DFun _ (LIdent fident) paramsTyped _ fbody:ds) bodyExp) = do
-        env <- ask
-        let params = map getName paramsTyped
-        let fun = Function (Just fident) params fbody env
-        local (addEnv fident (VFun fun)) $ execute (Body p ds bodyExp)
-    execute (Body p (DAlg _ algType algValues:ds) bodyExp) = execute (Body p ds bodyExp)
 
 executeCaseAlternative :: [(Exp Pos, Value)] -> Exp Pos -> ExecuteM (Maybe Value)
 executeCaseAlternative [] right = do
@@ -128,24 +111,12 @@ executeAlgebraicConstructor name algVals exps = do
     return $ VAlg name (algVals ++ newVals)
 
 instance Executable (Exp Pos) where
-    execute (EIfte _ eb e1 e2) = do
-        vb <- extract =<< execute eb
-        if vb
-            then execute e1
-            else execute e2
-    execute (ECase _ exp cases) = do
-        val <- execute exp
-        executeCaseExpression cases val
-    execute (EOr _ e1 e2) = do
-        v1 <- extract =<< execute e1
-        if v1
-            then return $ VBool True
-            else liftM VBool $ extract =<< execute e2
-    execute (EAnd _ e1 e2) = do
-        v1 <- extract =<< execute e1
-        if not v1
-            then return $ VBool False
-            else liftM VBool $ extract =<< execute e2
+    execute (EInt _ i) = return $ VInt i
+    execute (EBool _ (BTrue _)) = return $ VBool True
+    execute (EBool _ (BFalse _)) = return $ VBool False
+    execute (EUnit _ _) = return VUnit
+    execute (EVar p (LIdent name)) = findEnv name p
+    execute (EAlg _ (UIdent algValue)) = return $ VAlg algValue []
     execute (EEq _ e1 e2) = liftM VBool $ executeOp e1 e2 ((==) :: Integer -> Integer -> Bool)
     execute (ENeq _ e1 e2) = liftM VBool $ executeOp e1 e2 ((/=) :: Integer -> Integer -> Bool)
     execute (ELt _ e1 e2) = liftM VBool $ executeOp e1 e2 ((<) :: Integer -> Integer -> Bool)
@@ -161,20 +132,49 @@ instance Executable (Exp Pos) where
         dividend <- extract =<< execute e1
         return $ VInt $ dividend `div` divisor
     execute (EMod _ e1 e2) = liftM VInt $ executeOp e1 e2 mod
-    execute (ECall p exp exps) = do
-        value <- execute exp
-        case value of
-            (VFun fun) -> executeFunctionCall fun exps
-            (VAlg name vals) -> executeAlgebraicConstructor name vals exps
-            _ -> throwError $ ExecutionError UnexpectedTypeExecutionError p
+    execute (EOr _ e1 e2) = do
+        v1 <- extract =<< execute e1
+        if v1
+            then return $ VBool True
+            else liftM VBool $ extract =<< execute e2
+    execute (EAnd _ e1 e2) = do
+        v1 <- extract =<< execute e1
+        if not v1
+            then return $ VBool False
+            else liftM VBool $ extract =<< execute e2
+    execute (EIfte _ eb e1 e2) = do
+        vb <- extract =<< execute eb
+        if vb
+            then execute e1
+            else execute e2
+    execute (ECase _ expr cases) = do
+        val <- execute expr
+        executeCaseExpression cases val
     execute (ELambda _ paramsTyped body) = do
         env <- ask
         let params = map getName paramsTyped
         let fun = Function Nothing params body env
         return $ VFun fun
-    execute (EInt _ i) = return $ VInt i
-    execute (EBool _ (BTrue _)) = return $ VBool True
-    execute (EBool _ (BFalse _)) = return $ VBool False
-    execute (EUnit _ _) = return VUnit
-    execute (EVar p (LIdent name)) = findEnv name p
-    execute (EAlg _ (UIdent algValue)) = return $ VAlg algValue []
+    execute (ECall p expr exps) = do
+        value <- execute expr
+        case value of
+            (VFun fun) -> executeFunctionCall fun exps
+            (VAlg name vals) -> executeAlgebraicConstructor name vals exps
+            _ -> throwError $ ExecutionError UnexpectedTypeExecutionError p
+
+instance Executable (Body Pos) where
+    execute (Body _ [] e) = execute e
+    execute (Body p (DPut _ expr:ds) bodyExp) = do
+        v <- execute expr
+        liftIO . putStrLn $ ">> " ++ show v
+        execute (Body p ds bodyExp)
+    execute (Body p (DVal _ typedIdent dExp:ds) bodyExp) = do
+        v <- execute dExp
+        let ident = getName typedIdent
+        local (addEnv ident v) $ execute (Body p ds bodyExp)
+    execute (Body p (DFun _ (LIdent fident) paramsTyped _ fbody:ds) bodyExp) = do
+        env <- ask
+        let params = map getName paramsTyped
+        let fun = Function (Just fident) params fbody env
+        local (addEnv fident (VFun fun)) $ execute (Body p ds bodyExp)
+    execute (Body p (DAlg _ _ _:ds) bodyExp) = execute (Body p ds bodyExp)

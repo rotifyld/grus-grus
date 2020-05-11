@@ -13,9 +13,6 @@ module Utils
     , pos
     ) where
 
-import Data.List (intercalate)
-import Debug.Trace (trace, traceStack)
-
 import AbsGrusGrus
 
 type Name = String

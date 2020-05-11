@@ -1,22 +1,14 @@
 module IErr where
 
-import Control.Monad.Except (Except, ExceptT)
-import Data.Maybe (fromMaybe)
-
-import AbsGrusGrus
-import Control.Monad (MonadPlus)
 import TypecheckerUtils (Type)
-import Utils
+import Utils (Name, Pos, showPos)
 
 data IError
     = TypecheckError TypecheckError Pos
     | ExecutionError ExecutionError Pos
 
 data TypecheckError
-    = UnexpectedTypeError
-          { expected :: Type
-          , actual :: Type
-          }
+    = UnexpectedTypeError Type Type
     | VariableNotInScopeError Name
     | AlgebraicNotInScopeError Name
     | NonArrowTypeError Type
@@ -35,8 +27,8 @@ instance Show IError where
     show (ExecutionError err pos) = unlines ["Runtime error:", "At " ++ showPos pos, show err]
 
 instance Show TypecheckError where
-    show UnexpectedTypeError {expected = etype, actual = atype} =
-        unlines ["Unexpected type.", "  Expected:", "    " ++ show etype, "  Actual", "    " ++ show atype]
+    show (UnexpectedTypeError expected actual) =
+        unlines ["Unexpected type.", "  Expected:", "    " ++ show expected, "  Actual", "    " ++ show actual]
     show (VariableNotInScopeError vname) = "Variable \"" ++ vname ++ "\" not in scope."
     show (AlgebraicNotInScopeError aname) = "Algebraic value \"" ++ aname ++ "\" not in scope."
     show (NonArrowTypeError t) =
