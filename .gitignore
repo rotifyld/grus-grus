@@ -3,15 +3,12 @@
 *.cabal
 *.iml
 *.lock
-ChangeLog.md
 *.bak
 LICENSE
 Setup.hs
 
 src/concepts
 *~
-
-bnfcref.sh
 
 # Project exclude paths
 /out/
