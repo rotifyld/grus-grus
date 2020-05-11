@@ -10,5 +10,8 @@ Setup.hs
 
 src/concepts
 *~
+
+bnfcref.sh
+
 # Project exclude paths
 /out/
