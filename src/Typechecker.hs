@@ -21,6 +21,20 @@ import Utils
 initEnv :: Env
 initEnv = initialTypecheckEnv
 
+insertConstructor :: TypeAlgConstr Pos -> TypecheckM Env
+insertConstructor constr = do
+    guardUniqueConstructor constr
+    env <- ask
+    return $ addConstructorEnv (getNameA constr) env
+
+insertConstructors :: [TypeAlgConstr Pos] -> TypecheckM Env
+insertConstructors [] = do
+    env <- ask
+    return env
+insertConstructors (c:cs) = do
+    env' <- insertConstructor c
+    local (const env') $ insertConstructors cs
+
 type TypecheckM = ReaderT Env (Except IError)
 
 runTypecheckM :: TypecheckM a -> Either IError a
@@ -42,6 +56,12 @@ guardWithTypecheck :: (Typecheckable a, WithPos a) => Type -> a -> TypecheckM ()
 guardWithTypecheck expectedType typecheckable = do
     actualType <- typecheck typecheckable
     guardType (pos typecheckable) expectedType actualType
+
+guardUniqueConstructor :: TypeAlgConstr Pos -> TypecheckM ()
+guardUniqueConstructor constr = do
+    env <- ask
+    let name = getNameA constr
+    when (lookupConstructorEnv name env) $ throwError $ TypecheckError (MultipleDefinitions name) (pos constr)
 
 instance Typecheckable (ParserType Pos) where
     typecheck (PTInt _) = return TInt
@@ -174,10 +194,10 @@ instance Typecheckable (Body Pos) where
         local (addVariableEnv funName funType . addVariablesEnv paramNames paramTypes) $
             guardWithTypecheck bodyExpectedType body
         local (addVariableEnv funName funType) $ typecheck (Body p ds bodyExp)
-    typecheck (Body p (DAlg _ (UIdent typeName) values:ds) bodyExp) = do
+    typecheck (Body p (DAlg _ (UIdent typeName) constructors:ds) bodyExp) = do
         let algType = TAlgebraic typeName
-        let valueNames = map getNameA values
-        let valueParamPTypes = map getPTypes values
+        let constructorNames = map getNameA constructors
+        let valueParamPTypes = map getPTypes constructors
         valueParamTypes <- mapM (mapM typecheck) valueParamPTypes
         let valueTypes =
                 map
@@ -186,4 +206,5 @@ instance Typecheckable (Body Pos) where
                              then algType
                              else TArrow types algType)
                     valueParamTypes
-        local (addVariablesEnv valueNames valueTypes) $ typecheck (Body p ds bodyExp)
+        env' <- insertConstructors constructors
+        local (const $ addVariablesEnv constructorNames valueTypes env') $ typecheck (Body p ds bodyExp)

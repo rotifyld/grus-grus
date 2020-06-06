@@ -69,3 +69,7 @@ instance WithPos (Exp Pos) where
 
 instance WithPos (Body Pos) where
     pos (Body p _ _) = p
+
+instance WithPos (TypeAlgConstr Pos) where
+    pos (TAC p _) = p
+    pos (TACArgs p _ _) = p

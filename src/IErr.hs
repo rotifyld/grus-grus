@@ -16,6 +16,7 @@ data TypecheckError
     | TooManyArgumentsError Int Int
     | ConstructorArgumentsError Name Int Int
     | CaseTypeMismatchError Type
+    | MultipleDefinitions Name
 
 data ExecutionError
     = DivideByZeroError
@@ -46,6 +47,7 @@ instance Show TypecheckError where
             ]
     show (CaseTypeMismatchError t) =
         unlines ["Couldn't match types in left side of case expression.", "  Expected:", "    " ++ show t]
+    show (MultipleDefinitions name) = "Multiple definitions of " ++ show name
 
 instance Show ExecutionError where
     show DivideByZeroError = "Divide by zero"

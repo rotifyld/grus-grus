@@ -1,0 +1,3 @@
+alg Drugi = A | A(Int) | B;
+
+2
