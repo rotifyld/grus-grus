@@ -1,0 +1,4 @@
+alg Zupa = Pomidorowa | Zurek;
+alg Danie = Spaghetti | Pierogi;
+
+Pomidorowa != Pierogi

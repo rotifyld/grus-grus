@@ -12,6 +12,7 @@ data TypecheckError
     | VariableNotInScopeError Name
     | AlgebraicNotInScopeError Name
     | NonArrowTypeError Type
+    | NotComparable Type
     | TooManyArgumentsError Int Int
     | ConstructorArgumentsError Name Int Int
     | CaseTypeMismatchError Type
@@ -33,6 +34,8 @@ instance Show TypecheckError where
     show (AlgebraicNotInScopeError aname) = "Algebraic value \"" ++ aname ++ "\" not in scope."
     show (NonArrowTypeError t) =
         unlines ["Expression is not callable.", "  Expected an arrow type.", "  Actual:", "    " ++ show t]
+    show (NotComparable t) =
+        unlines ["Expression is not comparable.", "  Expected non-arrow type.", "  Actual:", "    " ++ show t]
     show (TooManyArgumentsError expected actual) =
         "Too many arguments. Expected " ++ show expected ++ ". Actual " ++ show actual
     show (ConstructorArgumentsError name expected actual) =

@@ -117,8 +117,13 @@ instance Executable (Exp Pos) where
     execute (EUnit _ _) = return VUnit
     execute (EVar p (LIdent name)) = findEnv name p
     execute (EAlg _ (UIdent algValue)) = return $ VAlg algValue []
-    execute (EEq _ e1 e2) = liftM VBool $ executeOp e1 e2 ((==) :: Integer -> Integer -> Bool)
-    execute (ENeq _ e1 e2) = liftM VBool $ executeOp e1 e2 ((/=) :: Integer -> Integer -> Bool)
+    execute (EEq _ e1 e2) = do
+        v1 <- execute e1
+        v2 <- execute e2
+        return $ VBool $ v1 == v2
+    execute (ENeq p e1 e2) = do
+        b <- extract =<< execute (EEq p e1 e2)
+        return $ VBool $ not b
     execute (ELt _ e1 e2) = liftM VBool $ executeOp e1 e2 ((<) :: Integer -> Integer -> Bool)
     execute (EGt _ e1 e2) = liftM VBool $ executeOp e1 e2 ((>) :: Integer -> Integer -> Bool)
     execute (ELe _ e1 e2) = liftM VBool $ executeOp e1 e2 ((<=) :: Integer -> Integer -> Bool)

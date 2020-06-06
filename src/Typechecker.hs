@@ -111,8 +111,14 @@ instance Typecheckable (Exp Pos) where
             Just t -> return t
     typecheck (EOr _ e1 e2) = guardBinaryType e1 e2 TBool TBool >> return TBool
     typecheck (EAnd _ e1 e2) = guardBinaryType e1 e2 TBool TBool >> return TBool
-    typecheck (EEq _ e1 e2) = guardBinaryType e1 e2 TInt TInt >> return TBool
-    typecheck (ENeq _ e1 e2) = guardBinaryType e1 e2 TInt TInt >> return TBool
+    typecheck (EEq p e1 e2) = do
+        t1 <- typecheck e1
+        case t1 of
+            (TArrow _ _) -> throwError $ TypecheckError (NotComparable t1) p
+            _ -> do
+                guardWithTypecheck t1 e2
+                return TBool
+    typecheck (ENeq p e1 e2) = typecheck (EEq p e1 e2)
     typecheck (ELt _ e1 e2) = guardBinaryType e1 e2 TInt TInt >> return TBool
     typecheck (EGt _ e1 e2) = guardBinaryType e1 e2 TInt TInt >> return TBool
     typecheck (ELe _ e1 e2) = guardBinaryType e1 e2 TInt TInt >> return TBool
