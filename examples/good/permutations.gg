@@ -1,0 +1,17 @@
+alg List = Nil | Cons(Int, List);
+
+fun insert(el: Int, l: List) -> List {
+    case l of {
+        _ ~> Cons(el, l);
+        Cons(head, tail) ~> Cons(head, insert(el, tail));
+    }
+}
+
+fun permutation(l: List) -> List {
+    case l of {
+        Cons(x, Nil) ~> l;
+        Cons(head, tail) ~> insert(head, permutation(tail));
+    }
+}
+
+permutation(Cons(1, Cons(2, Cons(3, Cons(4, Nil)))))

@@ -1,4 +1,0 @@
-alg List = Nil | Cons(Int, List);
-
-(if Cons(1, Cons(2, Nil)) == Cons(1, Cons(2, Nil)) then 1 else 0) +
-(if Cons(1, Cons(2, Nil)) == Cons(1, Cons(3, Nil)) then 2 else 0)
